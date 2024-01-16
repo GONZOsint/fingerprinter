@@ -26,7 +26,6 @@ If you consistently get a **unique identifier each time (🟢)**, it's a positiv
 - [detectIncognitoJS](https://github.com/Joe12387/detectIncognito)
 - [OPFS](https://github.com/Joe12387/OP-Fingerprinting-Script)
 - [Canvas](https://github.com/rylans/canvasprintjs)
-- [IP Data](#ip-data)
 
 ## IP Data
 
