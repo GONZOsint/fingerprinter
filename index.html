@@ -340,7 +340,7 @@
             </div>
         </div>
 
-
+    </div>
 
     <!-- Scripts -->
     <script>
@@ -376,7 +376,6 @@
 
     <!-- Your JavaScript for Fingerprinting Methods -->
     <script src="static/Thumbmark.js"></script>
-    <script src="static/fingerprintjsv4.js" type="module"></script>
     <script src="static/client.min.js"></script>
     <script src="static/imprint.min.js"></script>
     <script src="static/detectIncognito.min.js"></script>
@@ -384,7 +383,30 @@
     <script src="static/canvasprint.js"></script>
     <script src="static/ghostip.js"></script>
     <script src="static/ghostdevice.js"></script>
+    <!-- Load the locally hosted FingerprintJS library -->
+    <script>
+        (async () => {
+            try {
+                const FingerprintJS = await import('./static/fingerprintjsv4.js');
+                const fp = await FingerprintJS.load();
 
+                // Get the visitor identifier when you need it.
+                const result = await fp.get();
+                const visitorId = result.visitorId;
+
+                // Update the element only if it exists
+                const visitorIdDisplay = document.getElementById('fingerprintJSVisitorId');
+                if (visitorIdDisplay) {
+                    visitorIdDisplay.innerText = visitorId || 'Not available';
+                }
+
+                updateProgressBar();
+            } catch (error) {
+                console.error('Fingerprinting error:', error);
+                updateProgressBar();
+            }
+        })();
+    </script>
 
     <script>
         // ThumbmarkJS Fingerprint
@@ -393,16 +415,6 @@
             updateProgressBar();
         }).catch(handleError);
 
-        // FingerprintJS Visitor ID
-        const fpPromise = import("{{ url_for('static', filename='fingerprintjsv4.js') }}").then(FingerprintJS => FingerprintJS.load());
-
-        fpPromise
-            .then(fp => fp.get())
-            .then(result => {
-                const fingerprintJSVisitorId = result.visitorId;
-                document.getElementById('fingerprintJSVisitorId').innerText = fingerprintJSVisitorId || 'Not available';
-                updateProgressBar();
-            }).catch(handleError);
 
         // ClientJS Device/Browser Fingerprint
         var client = new ClientJS();
@@ -418,7 +430,7 @@
         ];
 
         imprint.test(browserTests).then(function (result) {
-            document.getElementById('imprintFingerprint').innerText = JSON.stringify(result) || 'Not available';
+            document.getElementById('imprintFingerprint').innerText = result || 'Not available';
             updateProgressBar();
         }).catch(handleError);
 
@@ -585,3 +597,4 @@
 </body>
 
 </html>
+
