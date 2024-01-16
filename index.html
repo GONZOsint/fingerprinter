@@ -370,7 +370,7 @@
         }).catch(handleError);
 
         // FingerprintJS Visitor ID
-        const fpPromise = import("static/fingerprintjsv4.js') }}").then(FingerprintJS => FingerprintJS.load());
+        const fpPromise = import("static/fingerprintjsv4.js").then(FingerprintJS => FingerprintJS.load());
 
         fpPromise
             .then(fp => fp.get())
