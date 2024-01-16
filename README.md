@@ -1,4 +1,7 @@
-# 🕵️‍♂️ FINGERPRINTER
+<div align='center'>
+  <img src="static/icon.png" width="15%"> 
+  <h1>FINGERPRINTER</h1>
+</div>
 
 ## 🌐 Overview
 
