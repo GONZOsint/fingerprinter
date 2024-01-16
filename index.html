@@ -78,7 +78,7 @@
             content: '';
             position: absolute;
             left: 0;
-            right: 100%; /* Initially set right to 100% to start from the left */
+            right: 100%;
             bottom: 0;
             height: 2px;
             background-color: transparent;
@@ -86,7 +86,7 @@
         }
 
         .unique-id:hover::before {
-            right: 0; /* Move the underline to the right */
+            right: 0;
             background-color: #ffd700;
         }
 
@@ -203,7 +203,6 @@
             }
         }
 
-        /* Add these styles for the color palette */
         .alert-success {
             background-color: #54c1e6;
             color: #fff;
@@ -222,6 +221,24 @@
             color: #ffd700;
             margin-bottom: 20px;
         }
+
+        .comparison-info {
+            max-width: 600px;
+            text-align: center;
+            font-size: 0.8em;
+            line-height: 1.5;
+            color: white;
+            margin: 20px auto;
+            padding: 10px;
+            border: 2px solid #ffd700;
+            border-radius: 5px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .comparison-info h6 {
+            color: #ffd700;
+        }
     </style>
 
     <!-- Google Fonts -->
@@ -232,7 +249,7 @@
 
     <!-- App Title -->
     <div class="app-title">
-        <img src="static/icon.png'" class="icon" alt="Fingerprinter Icon" style="width: 50%; max-width: 50px; height: auto;">
+        <img src="static/icon.png" class="icon" alt="Fingerprinter Icon" style="width: 50%; max-width: 50px; height: auto;">
         FINGERPRINTER
     </div>
 
@@ -242,6 +259,13 @@
         <p>This interactive dashboard presents a variety of identifiers created through different methods, offering detailed insights into your browser's unique digital profile.</p>
     </div>
 
+    <!-- Browser Fingerprint Comparison Instructions -->
+    <div class="comparison-info">
+        <h6>Compare Fingerprints</h6>
+        <p>Open in regular mode, incognito, or after clearing data for different fingerprints.</p>
+    </div>
+
+
     <!-- Loader -->
     <div class="loader-container">
         <div class="progress">
@@ -250,7 +274,7 @@
         </div>
     </div>
 
-    <!-- Display Unique IDs -->
+    <!-- Unique IDs -->
     <div class="dashboard">
         <!-- Unique IDs -->
         <div class="dashboard-card">
@@ -320,6 +344,16 @@
 
 
     <!-- Scripts -->
+    <!-- JavaScript for Fingerprinting Methods -->
+    <script src="static/Thumbmark.js"></script>
+    <script src="static/client.min.js"></script>
+    <script src="static/imprint.min.js"></script>
+    <script src="static/detectIncognito.min.js"></script>
+    <script src="static/opfs.min.js"></script>
+    <script src="static/canvasprint.js"></script>
+    <script src="static/ghostip.js"></script>
+    <script src="static/ghostdevice.js"></script>
+
     <script>
         // Simulate loading delay for the loader
         setTimeout(() => {
@@ -350,17 +384,6 @@
         // Counter for completed methods
         let completedMethods = 0;
     </script>
-
-    <!-- Your JavaScript for Fingerprinting Methods -->
-    <script src="static/Thumbmark.js"></script>
-    <script src="static/fingerprintjsv4.js" type="module"></script>
-    <script src="static/client.min.js"></script>
-    <script src="static/imprint.min.js"></script>
-    <script src="static/detectIncognito.min.js"></script>
-    <script src="static/opfs.min.js"></script>
-    <script src="static/canvasprint.js"></script>
-    <script src="static/ghostip.js"></script>
-    <script src="static/ghostdevice.js"></script>
 
     <script>
         // ThumbmarkJS Fingerprint
@@ -551,14 +574,14 @@
             });
 
             if (hasErrors) {
-                // All methods resulted in errors, hide the loader and display an error message
                 document.querySelector('.loader-container').style.display = 'none';
                 alert('An error occurred while fetching fingerprint data.');
             }
         }
     </script>
 
+
+
 </body>
 
 </html>
-
