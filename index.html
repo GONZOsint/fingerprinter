@@ -265,7 +265,6 @@
         <p>Open in regular mode, incognito, or after clearing data for different fingerprints.</p>
     </div>
 
-
     <!-- Loader -->
     <div class="loader-container">
         <div class="progress">
@@ -274,7 +273,7 @@
         </div>
     </div>
 
-    <!-- Unique IDs -->
+    <!-- Display Unique IDs -->
     <div class="dashboard">
         <!-- Unique IDs -->
         <div class="dashboard-card">
@@ -344,16 +343,6 @@
 
 
     <!-- Scripts -->
-    <!-- JavaScript for Fingerprinting Methods -->
-    <script src="static/Thumbmark.js"></script>
-    <script src="static/client.min.js"></script>
-    <script src="static/imprint.min.js"></script>
-    <script src="static/detectIncognito.min.js"></script>
-    <script src="static/opfs.min.js"></script>
-    <script src="static/canvasprint.js"></script>
-    <script src="static/ghostip.js"></script>
-    <script src="static/ghostdevice.js"></script>
-
     <script>
         // Simulate loading delay for the loader
         setTimeout(() => {
@@ -385,6 +374,18 @@
         let completedMethods = 0;
     </script>
 
+    <!-- Your JavaScript for Fingerprinting Methods -->
+    <script src="static/Thumbmark.js"></script>
+    <script src="static/fingerprintjsv4.js" type="module"></script>
+    <script src="static/client.min.js"></script>
+    <script src="static/imprint.min.js"></script>
+    <script src="static/detectIncognito.min.js"></script>
+    <script src="static/opfs.min.js"></script>
+    <script src="static/canvasprint.js"></script>
+    <script src="static/ghostip.js"></script>
+    <script src="static/ghostdevice.js"></script>
+
+
     <script>
         // ThumbmarkJS Fingerprint
         ThumbmarkJS.getFingerprint().then(function (fp) {
@@ -393,7 +394,7 @@
         }).catch(handleError);
 
         // FingerprintJS Visitor ID
-        const fpPromise = import("static/fingerprintjsv4.js").then(FingerprintJS => FingerprintJS.load());
+        const fpPromise = import("{{ url_for('static', filename='fingerprintjsv4.js') }}").then(FingerprintJS => FingerprintJS.load());
 
         fpPromise
             .then(fp => fp.get())
@@ -417,7 +418,7 @@
         ];
 
         imprint.test(browserTests).then(function (result) {
-            document.getElementById('imprintFingerprint').innerText = result || 'Not available';
+            document.getElementById('imprintFingerprint').innerText = JSON.stringify(result) || 'Not available';
             updateProgressBar();
         }).catch(handleError);
 
@@ -574,13 +575,12 @@
             });
 
             if (hasErrors) {
+                // All methods resulted in errors, hide the loader and display an error message
                 document.querySelector('.loader-container').style.display = 'none';
                 alert('An error occurred while fetching fingerprint data.');
             }
         }
     </script>
-
-
 
 </body>
 
