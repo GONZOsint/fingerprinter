@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='icon.png') }}">
+    <link rel="icon" type="image/svg+xml" href="static/icon.png') }}">
 
     <title>Fingerprinter Dashboard</title>
 
@@ -232,7 +232,7 @@
 
     <!-- App Title -->
     <div class="app-title">
-        <img src="{{ url_for('static', filename='icon.png') }}" class="icon" alt="Fingerprinter Icon" style="width: 50%; max-width: 50px; height: auto;">
+        <img src="static/icon.png') }}" class="icon" alt="Fingerprinter Icon" style="width: 50%; max-width: 50px; height: auto;">
         FINGERPRINTER
     </div>
 
@@ -352,15 +352,15 @@
     </script>
 
     <!-- Your JavaScript for Fingerprinting Methods -->
-    <script src="{{ url_for('static', filename='Thumbmark.js') }}"></script>
-    <script src="{{ url_for('static', filename='fingerprintjsv4.js') }}" type="module"></script>
-    <script src="{{ url_for('static', filename='client.min.js') }}"></script>
-    <script src="{{ url_for('static', filename='imprint.min.js') }}"></script>
-    <script src="{{ url_for('static', filename='detectIncognito.min.js') }}"></script>
-    <script src="{{ url_for('static', filename='opfs.min.js') }}"></script>
-    <script src="{{ url_for('static', filename='canvasprint.js') }}"></script>
-    <script src="{{ url_for('static', filename='ghostip.js') }}"></script>
-    <script src="{{ url_for('static', filename='ghostdevice.js') }}"></script>
+    <script src="static/Thumbmark.js"></script>
+    <script src="static/fingerprintjsv4.js" type="module"></script>
+    <script src="static/client.min.js"></script>
+    <script src="static/imprint.min.js"></script>
+    <script src="static/detectIncognito.min.js"></script>
+    <script src="static/opfs.min.js"></script>
+    <script src="static/canvasprint.js"></script>
+    <script src="static/ghostip.js"></script>
+    <script src="static/ghostdevice.js"></script>
 
     <script>
         // ThumbmarkJS Fingerprint
@@ -370,7 +370,7 @@
         }).catch(handleError);
 
         // FingerprintJS Visitor ID
-        const fpPromise = import("{{ url_for('static', filename='fingerprintjsv4.js') }}").then(FingerprintJS => FingerprintJS.load());
+        const fpPromise = import("static/fingerprintjsv4.js') }}").then(FingerprintJS => FingerprintJS.load());
 
         fpPromise
             .then(fp => fp.get())
