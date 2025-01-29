@@ -1,602 +1,1899 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-    <meta charset="UTF-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" type="image/svg+xml" href="static/icon.png">
+    <meta charset="UTF-8" />
+    <title>Comprehensive Fingerprint Demo</title>
+    <link rel="icon" type="image/png" href="static/icon.png" />
 
-    <title>Fingerprinter Dashboard</title>
+    <!-- Bootstrap CSS (CDN) -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" />
+    <!-- Font Awesome CSS (CDN) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
+    <!-- Google Fonts -->
+    <link rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&family=Inter:wght@400;600;700&display=swap" />
 
-    <!-- Bootstrap CSS -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
-        integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+    <!-- 1) ThumbmarkJS -->
+    <script src="https://cdn.jsdelivr.net/npm/@thumbmarkjs/thumbmarkjs/dist/thumbmark.umd.js"></script>
+    <script>
+        (function () {
+            const logLibrary = (name, status, detail, libraryObject) => {
+                const key = `${name.toLowerCase().replace(/\s+/g, '')}_loaded`;
+                if (!sessionStorage.getItem(key)) {
+                    const message = `[${name}] - ${status}: Loaded successfully${detail ? ` (${detail})` : ''}`;
+                    console.log(message, libraryObject);
+                    sessionStorage.setItem(key, 'true');
+                }
+            };
 
-    <!-- Custom Styles -->
+            window.addEventListener('load', function () {
+                if (!window.ThumbmarkJS || typeof window.ThumbmarkJS.getFingerprintData !== 'function') {
+                    const errorMessage = 'ThumbmarkJS UMD failed to load or getFingerprintData is unavailable.';
+                    console.error('[ThumbmarkJS] - ERROR:', errorMessage);
+                    if (window.LibraryManager && typeof window.LibraryManager.updateStatus === 'function') {
+                        window.LibraryManager.updateStatus('thumbmarkjs', 'error', errorMessage);
+                    }
+                } else {
+                    logLibrary('ThumbmarkJS', 'SUCCESS', 'UMD', window.ThumbmarkJS);
+                    if (window.LibraryManager && typeof window.LibraryManager.updateStatus === 'function') {
+                        window.LibraryManager.updateStatus('thumbmarkjs', 'success',
+                            'ThumbmarkJS loaded successfully.');
+                    }
+                }
+            });
+        })();
+    </script>
+
+    <!-- 2) ImprintJS -->
+    <script src="https://cdn.jsdelivr.net/npm/imprintjs@1.0.0/dist/imprint.min.js"
+            onerror="console.warn('Failed to load ImprintJS from CDN, attempting to load locally.'); this.onerror=null; this.src='imprint.min.js';">
+    </script>
+
+    <!-- 3) FingerprintJS (v4) with fallback to CDN -->
+    <script type="module">
+        (async () => {
+            try {
+                // Attempt to load local FingerprintJS v4
+                const FingerprintJS = await import('./static/fingerprintjsv4.js');
+                const fp = await FingerprintJS.load();
+                const result = await fp.get();
+                window.fingerprintJSVisitorId = result.visitorId;
+
+                const visitorIdDisplay = document.getElementById('fingerprintJSVisitorId');
+                if (visitorIdDisplay) visitorIdDisplay.innerText = result.visitorId || 'Not available';
+
+                if (window.LibraryManager && typeof window.LibraryManager.updateStatus === 'function') {
+                    window.LibraryManager.updateStatus('fingerprintjs', 'success', 'FingerprintJS v4 loaded locally.');
+                }
+            } catch (error) {
+                console.error('Failed to load local FingerprintJS v4, attempting CDN:', error);
+                const script = document.createElement('script');
+                script.type = 'module';
+                script.src = 'https://cdn.jsdelivr.net/npm/@fingerprintjs/fingerprintjs@4.5.1/+esm';
+                script.onload = async () => {
+                    try {
+                        const FingerprintJS = await import('https://cdn.jsdelivr.net/npm/@fingerprintjs/fingerprintjs@4.5.1/+esm');
+                        const fp = await FingerprintJS.load();
+                        const result = await fp.get();
+                        window.fingerprintJSVisitorId = result.visitorId;
+
+                        const visitorIdDisplay = document.getElementById('fingerprintJSVisitorId');
+                        if (visitorIdDisplay) visitorIdDisplay.innerText = result.visitorId || 'Not available';
+
+                        if (window.LibraryManager && typeof window.LibraryManager.updateStatus === 'function') {
+                            window.LibraryManager.updateStatus('fingerprintjs', 'success',
+                                'FingerprintJS v4 loaded from CDN.');
+                        }
+                    } catch (cdnError) {
+                        console.error('Fingerprinting error after CDN fallback:', cdnError);
+                        if (window.LibraryManager && typeof window.LibraryManager.updateStatus === 'function') {
+                            window.LibraryManager.updateStatus('fingerprintjs', 'error',
+                                'Failed to load FingerprintJS v4 from both local and CDN.');
+                        }
+                    }
+                };
+                script.onerror = () => {
+                    console.error('Failed to load FingerprintJS from CDN fallback.');
+                    if (window.LibraryManager && typeof window.LibraryManager.updateStatus === 'function') {
+                        window.LibraryManager.updateStatus('fingerprintjs', 'error',
+                            'Failed to load FingerprintJS from CDN fallback.');
+                    }
+                };
+                document.head.appendChild(script);
+            }
+        })();
+    </script>
+
+    <!-- 4) ClientJS -->
+    <script src="https://cdn.jsdelivr.net/npm/clientjs@0.2.1/dist/client.base.min.js"></script>
+
+    <!-- 5) DetectIncognitoJS -->
+    <script type="module">
+        import { detectIncognito } from 'https://esm.sh/detectincognitojs@1.3.7';
+        window.detectIncognito = detectIncognito;
+    </script>
+
+    <!-- 6) get-browser-fingerprint -->
+    <script type="module">
+        import getBrowserFingerprint from 'https://cdn.jsdelivr.net/npm/get-browser-fingerprint@4.0.1/+esm';
+        window.getBrowserFingerprint = getBrowserFingerprint;
+    </script>
+
+    <!-- 7) OPFS Fingerprint -->
+    <script src="static/opfs.min.js"></script>
+
+    <!-- 8) Canvasprint -->
+    <script src="static/canvasprint.js"></script>
+
+    <!-- 11) browser-signature -->
+    <script src="https://cdn.jsdelivr.net/npm/browser-signature@1.0.5/dist/browser-signature.umd.js"></script>
+
+    <!-- 12) cbf.js -->
+    <script type="module">
+        import { App as cbfApp } from './static/cbf.js';
+        document.addEventListener('DOMContentLoaded', function () {
+            window.cbfApp = cbfApp;
+        });
+    </script>
+
+    <!-- 14) cuid Library -->
+    <script type="module">
+        import cuid from 'https://cdn.jsdelivr.net/npm/browser-fingerprint@0.1.0/+esm';
+        window.cuid = cuid;
+    </script>
+
     <style>
+        /********************************************************************
+         * GLOBAL STYLES
+         ********************************************************************/
+        :root {
+            --primary-color: #6610f2;
+            --secondary-color: #0dcaf0;
+            --text-color-primary: #e0e0e0;
+            --text-color-secondary: #adb5bd;
+            --bg-color-primary: #18181b;
+            --bg-color-secondary: #212529;
+            --border-color: #343a40;
+            --accent-color: #ffc107;
+        }
+
         body {
-            background-color: #121212;
-            color: #ffd700;
-            font-family: 'Consolas', monospace;
+            background-color: var(--bg-color-primary);
+            color: var(--text-color-primary);
+            font-family: 'Inter', sans-serif;
             margin: 0;
             padding: 0;
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
             min-height: 100vh;
-            transition: background-color 0.3s, color 0.3s;
+            transition: background-color 0.3s ease;
+        }
+        a {
+            color: var(--secondary-color);
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
+        a:hover {
+            color: var(--primary-color);
+        }
+
+        .container {
+            width: 95%;
+            max-width: 1200px;
+            padding: 30px;
+        }
+
+        .app-title {
+            font-family: 'Inter', sans-serif;
+            font-weight: bold;
+            font-size: 2.2rem;
+            margin-bottom: 25px;
+            text-align: center;
+            display: inline-flex;
+            align-items: center;
+            gap: 15px;
+            cursor: default;
+            transition: transform 0.2s ease-in-out;
+            justify-content: center;
+            color: var(--text-color-primary);
+            animation: fadeIn 1s ease-in-out;
+        }
+        .app-title img.icon {
+            width: 60px;
+            height: auto;
+            background-color: #ffffff00;
+            padding: 1px;
+            border-radius: 8px;
+            border: 3px solid var(--text-color-primary);
+        }
+        .app-title:hover {
+            transform: scale(1.05);
+        }
+
+        h5, h6 {
+            font-family: 'Inter', sans-serif;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: var(--text-color-primary);
+        }
+        p {
+            font-size: 0.95rem;
+            line-height: 1.6;
+            color: var(--text-color-secondary);
+        }
+        strong {
+            color: var(--text-color-primary);
+            font-weight: 600;
+        }
+        small.text-muted {
+            font-size: 0.7rem;
+            margin-left: 5px;
+        }
+
+        .explanatory-section,
+        .tip-section,
+        .dashboard-card,
+        .resource-section {
+            border: 1px solid var(--border-color);
+            background-color: var(--bg-color-secondary);
+            margin-bottom: 25px;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            animation: slideIn 0.5s ease-out;
+        }
+        /* Removed pulse animation from .tip-section */
+        .tip-section {
+            text-align: center;
+            font-style: italic;
+            background-color: rgba(255, 255, 255, 0.03);
+            color: var(--accent-color);
+            border-color: var(--accent-color);
+            position: relative;
+        }
+        /* Replaced rotate animation with up and down movement for the icon */
+        .tip-section i {
+            margin-right: 8px;
+            animation: bounce 2s infinite;
+            display: inline-block;
+        }
+
+        @keyframes bounce {
+            0%, 100% {
+                transform: translateY(0);
+            }
+            50% {
+                transform: translateY(-5px);
+            }
+        }
+
+        .refresh-button-container {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 25px;
+        }
+        .refresh-button {
+            background-color: var(--primary-color);
+            color: #fff;
+            border: none;
+            padding: 12px 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-radius: 8px;
+            transition: background-color 0.3s ease-in-out;
+            font-weight: 600;
+        }
+        .refresh-button:hover {
+            background-color: #551aaf;
+        }
+        .refresh-button i {
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0%   { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
 
         .loader-container {
-            width: 100%;
             display: flex;
             justify-content: center;
             align-items: center;
-            margin-top: 20px;
-            background-color: #121212;
+            margin: 40px 0;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+        .loader-container.active {
             opacity: 1;
-            transition: opacity 1s;
+            visibility: visible;
         }
-
-        .progress {
-            width: 50%;
-            margin: 20px 0;
-            border: 1px solid #ffd700;
-        }
-
-        .progress-bar {
-            background-color: #ffd700;
-            height: 100%;
-            transition: width 1s;
+        .spinner-border {
+            width: 3rem;
+            height: 3rem;
+            color: var(--primary-color);
+            border-width: 0.3em;
         }
 
         .dashboard {
             display: none;
             flex-wrap: wrap;
-            justify-content: center;
+            justify-content: space-between;
+            gap: 25px;
+            width: 100%;
             opacity: 0;
-            transition: opacity 1s;
+            transition: opacity 0.5s, display 0s 0.5s; 
+        }
+        .dashboard.show {
+            display: flex;
+            opacity: 1;
+            transition: opacity 0.5s;
+        }
+        .dashboard-card {
+            flex: 1 1 300px;
+            min-width: 300px;
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+            background-color: var(--bg-color-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        .dashboard-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+        }
+        .dashboard-title {
+            font-family: 'Inter', sans-serif;
+            font-size: 1.3rem;
+            font-weight: 700;
+            margin-bottom: 15px;
+            text-align: center;
+            color: var(--text-color-primary);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 10px;
         }
 
-        .dashboard-card {
-            width: 300px;
-            margin: 20px;
+        /* Resource Section for external links */
+        .resource-section h5 {
+            font-size: 1.15rem;
+            margin-bottom: 12px;
+            color: var(--accent-color);
+        }
+        .resource-section ul {
+            list-style-type: none;
+            padding-left: 0;
+            margin-bottom: 0;
+        }
+        .resource-section li {
+            margin-bottom: 0.5rem;
+        }
+        .resource-section a {
+            color: var(--secondary-color);
+        }
+        .resource-section a:hover {
+            color: var(--primary-color);
+            text-decoration: underline;
         }
 
         .unique-id {
-            margin: 20px 0;
-            max-width: 300px;
-            overflow: hidden;
-            white-space: nowrap;
-            text-overflow: ellipsis;
-            position: relative;
+            margin-bottom: 18px;
+            overflow-x: auto;
+            word-break: break-all;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 15px;
+            background-color: var(--bg-color-primary);
+            cursor: pointer;
+            transition: background-color 0.3s ease;
         }
-
-        .unique-id::before {
-            content: '';
-            position: absolute;
-            left: 0;
-            right: 100%;
-            bottom: 0;
-            height: 2px;
-            background-color: transparent;
-            transition: right 0.3s, background-color 0.3s;
-        }
-
-        .unique-id:hover::before {
-            right: 0;
-            background-color: #ffd700;
-        }
-
-        .unique-id-content {
-            color: #fff;
-            overflow: hidden;
-            white-space: nowrap;
-            text-overflow: ellipsis;
-            transition: color 0.3s;
-        }
-
         .unique-id:hover {
-            transform: scale(1.05);
+            background-color: #282c31;
         }
-
-
-
         .unique-id-label {
-            color: #ffd700;
-            font-weight: bold;
-            margin-bottom: 5px;
-            transition: color 0.3s;
+            font-weight: 600;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-color-primary);
+        }
+        .unique-id-content {
+            color: var(--text-color-secondary);
+            font-size: 0.9rem;
+            margin-bottom: 0;
+        }
+        .json-container {
+            display: none;
+            margin-top: 12px;
+            padding: 15px;
+            border: 1px solid var(--border-color);
+            background-color: #343a40;
+            color: #ccc;
+            font-family: 'Roboto Mono', monospace;
+            font-size: 0.8rem;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            border-radius: 6px;
+        }
+        .json-container.show {
+            display: block;
         }
 
-        .app-title {
-            font-size: 2em;
-            margin-bottom: 20px;
-            color: #ffd700;
+        .device-info-header {
+            font-family: 'Inter', sans-serif;
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 8px;
             cursor: pointer;
-            transition: color 0.3s;
-            text-align: center;
+            padding: 12px 18px;
+            border: 1px solid var(--border-color);
+            background-color: var(--bg-color-primary);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-radius: 6px;
+            transition: background-color 0.3s ease;
+            color: var(--text-color-primary);
         }
-
-        .app-title:hover {
-            color: #54c1e6;
+        .device-info-header:hover {
+            background-color: #282c31;
         }
-
-        #ghostDeviceInfoContainer {
-            max-height: 250px;
+        .device-info-content {
+            padding: 15px;
+            border: 1px solid var(--border-color);
+            background-color: #343a40;
+            margin-bottom: 15px;
             overflow-y: auto;
-            margin: 10px;
-            padding: 10px;
-            background-color: #212121;
-            border: 1px solid #ffd700;
-            border-radius: 5px;
-            color: #ffd700;
-            width: 350px;
-            position: relative;
+            max-height: 250px;
+            border-radius: 6px;
+            display: none;
+            color: var(--text-color-secondary);
+            font-size: 0.9rem;
+        }
+        .device-info-content.show {
+            display: block;
+        }
+        .device-info-content ul {
+            padding-left: 20px;
+            margin-bottom: 0;
+        }
+        .device-info-content li {
+            margin-bottom: 5px;
         }
 
-        #ipDataContainer {
-            width: auto;
-            max-width: 100%;
-            background-color: #212121;
-            padding: 10px;
-            border: 1px solid #ffd700;
-            border-radius: 5px;
-            color: #ffd700;
+        #cross-browser-id-container {
+            display: none;
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background-color: var(--bg-color-secondary);
+            animation: fadeIn 1s ease-in-out;
+        }
+        #cross-browser-id {
+            font-size: 1.4rem;
+            font-weight: bold;
+            color: #e0e0e0;
+            word-wrap: break-word;
+            word-break: break-word;
+            overflow-wrap: break-word;
         }
 
-        #ghostDeviceInfoContainer::-webkit-scrollbar,
-        #ipDataContainer::-webkit-scrollbar {
-            width: 8px;
+        /* Hidden <pre> for potential JSON usage */
+        .json-output {
+            max-height: 400px;
+            overflow-y: auto;
+            background-color: #343a40;
+            color: #e0e0e0;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Roboto Mono', monospace;
+            font-size: 0.85rem;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            display: none;
+        }
+        .json-output.show {
+            display: block;
         }
 
-        #ghostDeviceInfoContainer::-webkit-scrollbar-thumb,
-        #ipDataContainer::-webkit-scrollbar-thumb {
-            background-color: #ffd700;
-            border-radius: 4px;
+        /* Animation Keyframes */
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @keyframes slideIn {
+            from { transform: translateY(-20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
         }
 
-        #ghostDeviceInfoContainer .copy-button {
-            background-color: #ffd700;
-            color: #212121;
-            padding: 5px 10px;
-            border: none;
-            border-radius: 3px;
-            cursor: pointer;
-            font-size: 0.8em;
-            transition: background-color 0.3s, color 0.3s;
-        }
-
-        #ghostDeviceInfoContainer .copy-button:hover {
-            background-color: #54c1e6;
-            color: #212121;
-        }
-
-        .copy-button-container {
-            position: absolute;
-            top: 0;
-            right: 0;
-            margin-top: 10px;
-            margin-right: 10px;
-        }
-
-        #ghostDeviceInfoContainer::-webkit-scrollbar,
-        #ipDataContainer::-webkit-scrollbar {
-            width: 8px;
-        }
-
-        #ghostDeviceInfoContainer::-webkit-scrollbar-thumb,
-        #ipDataContainer::-webkit-scrollbar-thumb {
-            background-color: #ffd700;
-            border-radius: 4px;
-        }
-
-        @keyframes spin {
-            0% {
-                transform: rotate(0deg);
+        @media (max-width: 768px) {
+            .app-title {
+                font-size: 1.8rem;
+                flex-direction: column;
             }
-
-            100% {
-                transform: rotate(360deg);
+            .app-title img.icon {
+                margin-bottom: 10px;
             }
-        }
-
-        .alert-success {
-            background-color: #54c1e6;
-            color: #fff;
-        }
-
-        .alert-danger {
-            background-color: #dc3545;
-            color: #fff;
-        }
-
-        .project-info {
-            max-width: 600px;
-            text-align: center;
-            font-size: 1.2em;
-            line-height: 1.5;
-            color: #ffd700;
-            margin-bottom: 20px;
-        }
-
-        .comparison-info {
-            max-width: 600px;
-            text-align: center;
-            font-size: 0.8em;
-            line-height: 1.5;
-            color: white;
-            margin: 20px auto;
-            padding: 10px;
-            border: 2px solid #ffd700;
-            border-radius: 5px;
-            overflow: hidden;
-            position: relative;
-        }
-
-        .comparison-info h6 {
-            color: #ffd700;
+            .dashboard {
+                flex-direction: column;
+                align-items: center;
+            }
+            .dashboard-card {
+                width: 100%;
+                min-width: auto;
+            }
         }
     </style>
-
-    <!-- Google Fonts -->
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto&display=swap">
 </head>
 
 <body>
 
-    <!-- App Title -->
+<div class="container">
+    <!-- TITLE -->
     <div class="app-title">
-        <img src="static/icon.png" class="icon" alt="Fingerprinter Icon" style="width: 50%; max-width: 50px; height: auto;">
-        FINGERPRINTER
+        <img src="static/icon.png" class="icon" alt="Fingerprinter Icon" />
+        <span>FINGERPRINTER</span>
     </div>
 
-    <!-- Project Information -->
-    <div class="project-info">
-        <h5>Understand and protect your online identity against various tracking techniques.</h5>
-        <p>This interactive dashboard presents a variety of identifiers created through different methods, offering detailed insights into your browser's unique digital profile.</p>
+    <!-- Resource Section (Merged with Explanatory Paragraph) -->
+    <div class="resource-section">
+        <h5>Understanding Browser Fingerprinting</h5>
+        <p>This interactive dashboard presents a variety of identifiers created through different methods, offering
+           detailed insights into your browser's unique digital profile.</p>
+        <h5>Learn More About Fingerprinting</h5>
+        <p>Explore additional resources to understand the technical and privacy aspects of device/browser fingerprinting:</p>
+        <ul>
+            <li>
+                <a href="https://en.wikipedia.org/wiki/Device_fingerprint" target="_blank" rel="noopener noreferrer">
+                    Wikipedia: Device fingerprint
+                </a>
+            </li>
+            <li>
+                <a href="https://www.w3.org/TR/fingerprinting-guidance/" target="_blank" rel="noopener noreferrer">
+                    W3C Fingerprinting Guidance
+                </a>
+            </li>
+            <li>
+                <a href="https://wiki.mozilla.org/Fingerprinting" target="_blank" rel="noopener noreferrer">
+                    Mozilla Wiki: Fingerprinting
+                </a>
+            </li>
+        </ul>
     </div>
 
-    <!-- Browser Fingerprint Comparison Instructions -->
-    <div class="comparison-info">
-        <h6>Compare Fingerprints</h6>
-        <p>Evaluate your browser's privacy level by checking if the identifier changes each time you open the browser, after clearing data, or in incognito mode.
+    <!-- Tip Section -->
+    <div class="tip-section">
+        <i class="fas fa-info-circle"></i>
+        For comparison, try refreshing the page or opening it in a private browsing window or in other browsers.
+    </div>
 
-If you consistently get a unique identifier each time (🟢), it's a positive indicator for privacy. However, if the identifier remains constant (🔴), it's a potential risk to your privacy, making you more easily trackable.</p>
+    <!-- Collect Button -->
+    <div class="refresh-button-container">
+        <button class="refresh-button" title="Collect Fingerprint Data">
+            <i class="fas fa-fingerprint"></i> Collect Fingerprint
+        </button>
     </div>
 
     <!-- Loader -->
     <div class="loader-container">
-        <div class="progress">
-            <div class="progress-bar progress-bar-striped progress-bar-animated bg-warning" role="progressbar"
-                style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+        <div class="spinner-border" role="status">
+            <span class="visually-hidden">Loading...</span>
         </div>
     </div>
 
-    <!-- Display Unique IDs -->
-    <div class="dashboard">
-        <!-- Unique IDs -->
-        <div class="dashboard-card">
-            <div class="unique-id">
-                <label for="thumbmarkFingerprint" class="unique-id-label">ThumbmarkJS unique ID:</label>
-                <p id="thumbmarkFingerprint" class="unique-id-content">Loading...</p>
-            </div>
-
-            <div class="unique-id">
-                <label for="fingerprintJSVisitorId" class="unique-id-label">FingerprintJS unique ID:</label>
-                <p id="fingerprintJSVisitorId" class="unique-id-content">Loading...</p>
-            </div>
-
-            <div class="unique-id">
-                <label for="clientJSFingerprint" class="unique-id-label">ClientJS unique ID:</label>
-                <p id="clientJSFingerprint" class="unique-id-content">Loading...</p>
-            </div>
-
-            <div class="unique-id">
-                <label for="imprintFingerprint" class="unique-id-label">ImprintJS unique ID:</label>
-                <p id="imprintFingerprint" class="unique-id-content">Loading...</p>
-            </div>
-
-            <div class="unique-id">
-                <label for="detectIncognitoJSFingerprint" class="unique-id-label">detectIncognitoJS:</label>
-                <p id="detectIncognitoJSFingerprint" class="unique-id-content">Loading...</p>
-            </div>
-
-            <div class="unique-id">
-                <label for="opfsFingerprint" class="unique-id-label">OPFSJS unique ID:</label>
-                <p id="opfsFingerprint" class="unique-id-content">Loading...</p>
-            </div>
-
-            <div class="unique-id">
-                <label for="canvasFingerprint" class="unique-id-label">CanvasPrintJS unique ID:</label>
-                <p id="canvasFingerprint" class="unique-id-content">Loading...</p>
-            </div>
-        </div>
-
-        <!-- IP Data Container -->
-        <div class="dashboard-card">
-            <div id="ipDataContainer" class="unique-id">
-                <label for="ipData" class="unique-id-label">IP Data:</label>
-                <p id="ipData" class="unique-id-content">Loading...</p>
-            </div>
-        </div>
-
-        <!-- Notification Bar -->
-        <div id="notification" class="position-fixed bottom-0 end-0 p-3" style="z-index: 5">
-            <!-- Notification will be dynamically added here -->
-        </div>
-
-
-        <!-- GhostDevice Information -->
-        <div class="dashboard-card">
-            <div id="ghostDeviceInfoContainer" class="unique-id">
-                <label for="ghostDeviceInfo" class="unique-id-label">GhostDevice Information:</label>
-                <p id="ghostDeviceInfo" class="unique-id-content">Loading...</p>
-
-                <!-- Move the Copy Button Container inside the ghostDeviceInfoContainer -->
-                <div class="copy-button-container">
-                    <button class="copy-button" onclick="copyToClipboard()">Copy</button>
-                </div>
-            </div>
-        </div>
-
+    <!-- Cross-Browser ID Container -->
+    <div id="cross-browser-id-container">
+        <div id="cross-browser-id"></div>
     </div>
 
-    <!-- Scripts -->
-    <script>
-        // Simulate loading delay for the loader
-        setTimeout(() => {
-            // The loader will be hidden when all fingerprinting methods are complete
-            document.querySelector('.loader-container').style.opacity = '0';
-            setTimeout(() => {
-                document.querySelector('.loader-container').style.display = 'none';
-                document.querySelector('.dashboard').style.display = 'flex';
-                document.querySelector('.dashboard').style.opacity = '1';
-            }, 500); // Delay for smoother transition
-        }, 3000); // Simulated delay of 3 seconds
+    <!-- Dashboard -->
+    <div id="dashboard-container" class="dashboard"></div>
+</div>
 
-        // Simulate progress bar increment
-        let progress = 0;
-        const progressBar = document.querySelector('.progress-bar');
-        const intervalId = setInterval(() => {
-            progress += 20;
-            progressBar.style.width = `${progress}%`;
+<!-- 
+    Final "Collected Fingerprint Data" card is REMOVED.
+    We keep a hidden <pre> in case your scripts reference it for storing JSON.
+-->
+<pre id="fingerprint-result" style="display: none;"></pre>
 
-            if (progress >= 100) {
-                clearInterval(intervalId);
-            }
-        }, 500); // Adjust the interval (in milliseconds) as needed
+<!-- Bootstrap Bundle (Popper + Bootstrap JS) -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
-        // Number of fingerprinting methods
-        const totalMethods = 7; // Update this if you add or remove methods
+<!-- Full JS Logic Below -->
+<script>
+    /***********************************************************
+     * POPULATE DEVICE INFO
+     ***********************************************************/
+    function populateGhostDeviceUI(info) {
+        if (!info) return;
+        // OS
+        document.getElementById('osName').textContent = info.cpu?.userAgentData || 'N/A';
+        document.getElementById('osVersion').textContent = info.cpu?.architecture || 'N/A';
+        document.getElementById('osPlatform').textContent = info.display?.screen?.orientation?.type || 'N/A';
 
-        // Counter for completed methods
-        let completedMethods = 0;
-    </script>
+        // Architecture & GPU
+        document.getElementById('architecture').textContent = info.cpu?.architecture || 'N/A';
+        document.getElementById('gpuVendor').textContent = info.graphics?.vendor || 'N/A';
+        document.getElementById('gpuRenderer').textContent = info.graphics?.renderer || 'N/A';
 
-    <!-- Your JavaScript for Fingerprinting Methods -->
-    <script src="static/Thumbmark.js"></script>
-    <script src="static/client.min.js"></script>
-    <script src="static/imprint.min.js"></script>
-    <script src="static/detectIncognito.min.js"></script>
-    <script src="static/opfs.min.js"></script>
-    <script src="static/canvasprint.js"></script>
-    <script src="static/ghostip.js"></script>
-    <script src="static/ghostdevice.js"></script>
-    <!-- Load the locally hosted FingerprintJS library -->
-    <script>
-        (async () => {
-            try {
-                const FingerprintJS = await import('./static/fingerprintjsv4.js');
-                const fp = await FingerprintJS.load();
+        // Hardware
+        document.getElementById('cpuCores').textContent = info.cpu?.logicalCores || 'N/A';
+        document.getElementById('deviceMemory').textContent = info.memory?.deviceMemory || 'N/A';
+        document.getElementById('cpuPerformance').textContent = info.cpu?.performanceMetrics?.score
+            ? `${info.cpu.performanceMetrics.score} ${info.cpu.performanceMetrics.unit}`
+            : 'N/A';
 
-                // Get the visitor identifier when you need it.
-                const result = await fp.get();
-                const visitorId = result.visitorId;
+        // Display
+        const screenWidth = info.display?.screen?.width;
+        const screenHeight = info.display?.screen?.height;
+        const screenResolution = (screenWidth && screenHeight) ? `${screenWidth}x${screenHeight}` : 'N/A';
+        const dpi = info.display?.dpi || 'N/A';
+        const colorGamut = info.display?.colorGamut || 'N/A';
+        const hdrSupport = info.display?.hdrSupport?.hdrSupported ? 'Yes' : 'No';
+        const physicalResolution = info.display?.resolution?.physical
+            ? `${info.display.resolution.physical.width}x${info.display.resolution.physical.height}`
+            : 'N/A';
+        const logicalResolution = info.display?.resolution?.logical
+            ? `${info.display.resolution.logical.width}x${info.display.resolution.logical.height}`
+            : 'N/A';
 
-                // Update the element only if it exists
-                const visitorIdDisplay = document.getElementById('fingerprintJSVisitorId');
-                if (visitorIdDisplay) {
-                    visitorIdDisplay.innerText = visitorId || 'Not available';
+        document.getElementById('screenResolution').textContent = screenResolution;
+        document.getElementById('pixelDensity').textContent = dpi;
+        document.getElementById('colorGamut').textContent = colorGamut;
+        document.getElementById('hdrSupport').textContent = hdrSupport;
+        document.getElementById('physicalResolution').textContent = physicalResolution;
+        document.getElementById('logicalResolution').textContent = logicalResolution;
+
+        // Sensors
+        const sensors = info.sensors || {};
+        const accelerometer = sensors.motion?.accelerometer ? 'Yes' : 'No';
+        const gyroscope = sensors.motion?.gyroscope ? 'Yes' : 'No';
+        const ambientLight = sensors.environmental?.ambientLight ? 'Yes' : 'No';
+        const proximity = sensors.proximity?.supported ? 'Yes' : 'No';
+        const orientationSensor = sensors.orientation?.absolute ? 'Yes' : 'No';
+        const lightSensor = sensors.light?.supported ? 'Yes' : 'No';
+
+        const sensorsListEl = document.getElementById('sensorsList');
+        sensorsListEl.innerHTML = `
+            <li>Accelerometer: ${accelerometer}</li>
+            <li>Gyroscope: ${gyroscope}</li>
+            <li>Ambient Light Sensor: ${ambientLight}</li>
+            <li>Proximity Sensor: ${proximity}</li>
+            <li>Orientation Sensor: ${orientationSensor}</li>
+            <li>Light Sensor: ${lightSensor}</li>
+        `;
+
+        // Connectivity
+        const network = info.network || {};
+        const networkType = network.connection?.effectiveType || 'N/A';
+        const downlink = network.connection?.downlink ? `${network.connection.downlink} Mbps` : 'N/A';
+        const rtt = network.connection?.rtt ? `${network.connection.rtt} ms` : 'N/A';
+        const dataSaver = network.connection?.saveData ? 'Yes' : 'No';
+        const onlineStatus = network.onLine ? 'Yes' : 'No';
+        const latency = network.performanceMetrics?.latency
+            ? `${network.performanceMetrics.latency} seconds`
+            : 'N/A';
+        const localIPs = network.localIPs?.length > 0 ? network.localIPs.join(', ') : 'N/A';
+
+        document.getElementById('networkType').textContent = networkType;
+        document.getElementById('downlink').textContent = downlink;
+        document.getElementById('rtt').textContent = rtt;
+        document.getElementById('dataSaver').textContent = dataSaver;
+        document.getElementById('onlineStatus').textContent = onlineStatus;
+        document.getElementById('latency').textContent = latency;
+        document.getElementById('localIPs').textContent = localIPs;
+
+        // Battery
+        const battery = info.battery || {};
+        const charging = battery.charging ? 'Yes' : 'No';
+        const batteryLevel = battery.level !== undefined ? `${battery.level}%` : 'N/A';
+        const powerSource = battery.powerSource || 'N/A';
+        const chargingTime = battery.chargingTime || 'N/A';
+        const dischargingTime = battery.dischargingTime || 'N/A';
+        const temperature = battery.temperature || 'N/A';
+        const voltage = battery.voltage || 'N/A';
+        const capacity = battery.capacity || 'N/A';
+        const health = battery.health || 'N/A';
+
+        document.getElementById('batteryCharging').textContent = charging;
+        document.getElementById('batteryLevel').textContent = batteryLevel;
+        document.getElementById('powerSource').textContent = powerSource;
+        document.getElementById('chargingTime').textContent = chargingTime;
+        document.getElementById('dischargingTime').textContent = dischargingTime;
+        document.getElementById('batteryTemperature').textContent = temperature;
+        document.getElementById('batteryVoltage').textContent = voltage;
+        document.getElementById('batteryCapacity').textContent = capacity;
+        document.getElementById('batteryHealth').textContent = health;
+
+        // Input Devices
+        const inputDevices = info.inputDevices || {};
+        const pointing = inputDevices.pointing?.hasPointer ? 'Yes' : 'No';
+        const primaryInput = inputDevices.pointing?.primaryInput || 'N/A';
+        const maxPointers = inputDevices.pointing?.maxPointers || 'N/A';
+        const touchScreen = inputDevices.touch?.touchScreen ? 'Yes' : 'No';
+        const maxTouchPoints = inputDevices.touch?.maxTouchPoints || 'N/A';
+        const keyboardPresent = inputDevices.keyboard?.present ? 'Yes' : 'No';
+        const keyboardLayout = inputDevices.keyboard?.layout || 'N/A';
+        const virtualKeyboard = inputDevices.keyboard?.virtualKeyboard ? 'Yes' : 'No';
+        const keyboardLock = inputDevices.keyboard?.keyboardLock ? 'Yes' : 'No';
+        const gamepads = inputDevices.gamepad?.length > 0 ? inputDevices.gamepad.join(', ') : 'N/A';
+        const orientationFeature = inputDevices.virtualReality?.features?.orientation ? 'Yes' : 'No';
+        const positionFeature = inputDevices.virtualReality?.features?.position ? 'Yes' : 'No';
+
+        document.getElementById('pointingDevices').textContent = pointing;
+        document.getElementById('primaryInput').textContent = primaryInput;
+        document.getElementById('maxPointers').textContent = maxPointers;
+        document.getElementById('touchScreen').textContent = touchScreen;
+        document.getElementById('maxTouchPoints').textContent = maxTouchPoints;
+        document.getElementById('keyboardPresent').textContent = keyboardPresent;
+        document.getElementById('keyboardLayout').textContent = keyboardLayout;
+        document.getElementById('virtualKeyboard').textContent = virtualKeyboard;
+        document.getElementById('keyboardLock').textContent = keyboardLock;
+        document.getElementById('gamepads').textContent = gamepads;
+        document.getElementById('vrDisplay').textContent = orientationFeature;
+        document.getElementById('xrSupport').textContent = positionFeature;
+        document.getElementById('platformAuthenticator').textContent = platformAuthenticator;
+        document.getElementById('credentials').textContent = credentials;
+
+        // Audio
+        const audio = info.audio || {};
+        const audioInputs = audio.inputs?.length > 0
+            ? audio.inputs.map(input => input.label || 'Unnamed Input').join(', ')
+            : 'N/A';
+        const audioOutputs = audio.outputs?.length > 0
+            ? audio.outputs.map(output => output.label || 'Unnamed Output').join(', ')
+            : 'N/A';
+        const sampleRate = audio.capabilities?.sampleRate ? `${audio.capabilities.sampleRate} Hz` : 'N/A';
+        const maxChannels = audio.capabilities?.maxChannelCount
+            ? `${audio.capabilities.maxChannelCount} Channels`
+            : 'N/A';
+        const audioState = audio.capabilities?.state || 'N/A';
+        const baseLatency = audio.capabilities?.baseLatency ? `${audio.capabilities.baseLatency} ms` : 'N/A';
+        const outputLatency = audio.capabilities?.outputLatency || 'N/A';
+        const echoCancellation = audio.features?.echoCancellation ? 'Yes' : 'No';
+        const noiseSuppression = audio.features?.noiseSuppression ? 'Yes' : 'No';
+        const autoGainControl = audio.features?.autoGainControl ? 'Yes' : 'No';
+        const midiSupport = audio.features?.midi ? 'Yes' : 'No';
+        const spatialAudio = audio.features?.spatialAudio ? 'Yes' : 'No';
+
+        document.getElementById('audioInputs').textContent = audioInputs;
+        document.getElementById('audioOutputs').textContent = audioOutputs;
+        document.getElementById('sampleRate').textContent = sampleRate;
+        document.getElementById('maxChannels').textContent = maxChannels;
+        document.getElementById('audioState').textContent = audioState;
+        document.getElementById('baseLatency').textContent = baseLatency;
+        document.getElementById('outputLatency').textContent = outputLatency;
+        document.getElementById('echoCancellation').textContent = echoCancellation;
+        document.getElementById('noiseSuppression').textContent = noiseSuppression;
+        document.getElementById('autoGainControl').textContent = autoGainControl;
+        document.getElementById('midiSupport').textContent = midiSupport;
+        document.getElementById('spatialAudio').textContent = spatialAudio;
+
+        // Storage
+        const storage = info.storage || {};
+        const storageQuota = storage.quota || 'N/A';
+        const persistentStorage = storage.persistent || 'N/A';
+        const storageLikely = storage.deviceType?.likely || 'N/A';
+        const storageConfidence = storage.deviceType?.confidence || 'N/A';
+        const averageWriteTime = storage.deviceType?.metrics?.averageWriteTime
+            ? `${storage.deviceType.metrics.averageWriteTime} ms`
+            : 'N/A';
+        const writeVariance = storage.deviceType?.metrics?.variance
+            ? `${storage.deviceType.metrics.variance}`
+            : 'N/A';
+        const writeSampleSize = storage.deviceType?.metrics?.sampleSize
+            ? `${storage.deviceType.metrics.sampleSize}`
+            : 'N/A';
+
+        document.getElementById('storageQuota').textContent = storageQuota;
+        document.getElementById('persistentStorage').textContent = persistentStorage;
+        document.getElementById('storageType').textContent = `${storageLikely} (Confidence: ${storageConfidence})`;
+        document.getElementById('averageWriteTime').textContent = averageWriteTime;
+        document.getElementById('writeVariance').textContent = writeVariance;
+        document.getElementById('writeSampleSize').textContent = writeSampleSize;
+
+        // VR
+        const vr = info.inputDevices?.virtualReality || {};
+        const vrDisplay = vr.vrDisplay ? 'Yes' : 'No';
+        const xrSupport = vr.xr ? 'Yes' : 'No';
+        const vrOrientation = vr.features?.orientation ? 'Yes' : 'No';
+        const vrPosition = vr.features?.position ? 'Yes' : 'No';
+
+        document.getElementById('vrDisplay').textContent = vrDisplay;
+        document.getElementById('xrSupport').textContent = xrSupport;
+        document.getElementById('vrOrientation').textContent = vrOrientation;
+        document.getElementById('vrPosition').textContent = vrPosition;
+
+        // Biometric
+        const biometric = info.inputDevices?.biometric || {};
+        const platformAuthenticator = biometric.platformAuthenticator ? 'Yes' : 'No';
+        const credentials = biometric.credentials ? 'Yes' : 'No';
+
+        document.getElementById('platformAuthenticator').textContent = platformAuthenticator;
+        document.getElementById('credentials').textContent = credentials;
+    }
+
+    /***********************************************************
+     * The Main Script with Utility, LibraryManager, and App
+     ***********************************************************/
+    (function () {
+        // --- Utility Module ---
+        const Utils = (() => {
+            const safeCall = async (asyncFn, description) => {
+                try {
+                    const result = await asyncFn();
+                    console.log(`[Utils] - SUCCESS: ${description} -`, result);
+                    return { success: true, data: result };
+                } catch (error) {
+                    console.error(`[Utils] - ERROR: ${description} -`, error);
+                    return { success: false, error: error.toString() };
                 }
-
-                updateProgressBar();
-            } catch (error) {
-                console.error('Fingerprinting error:', error);
-                updateProgressBar();
-            }
-        })();
-    </script>
-
-    <script>
-        // ThumbmarkJS Fingerprint
-        ThumbmarkJS.getFingerprint().then(function (fp) {
-            document.getElementById('thumbmarkFingerprint').innerText = fp || 'Not available';
-            updateProgressBar();
-        }).catch(handleError);
-
-
-        // ClientJS Device/Browser Fingerprint
-        var client = new ClientJS();
-        var clientFingerprint = client.getFingerprint();
-        document.getElementById('clientJSFingerprint').innerText = clientFingerprint || 'Not available';
-        updateProgressBar();
-
-        // ImprintJS Fingerprint
-        var browserTests = [
-            "availableScreenResolution", "canvas", "colorDepth", "cookies", "cpuClass", "deviceDpi", "doNotTrack",
-            "indexedDb", "installedFonts", "language", "localStorage", "pixelRatio", "platform", "plugins",
-            "processorCores", "screenResolution", "sessionStorage", "timezoneOffset", "touchSupport", "userAgent"
-        ];
-
-        imprint.test(browserTests).then(function (result) {
-            document.getElementById('imprintFingerprint').innerText = result || 'Not available';
-            updateProgressBar();
-        }).catch(handleError);
-
-        // detectIncognitoJS Device/Browser Fingerprint
-        detectIncognito().then((result) => {
-            document.getElementById('detectIncognitoJSFingerprint').innerText =
-                (result.browserName || 'Not available') + ', ' + (result.isPrivate || 'Not available');
-            updateProgressBar();
-        }).catch(handleError);
-
-        // OPFS Fingerprint
-        fingerprint().then((result) => {
-            document.getElementById('opfsFingerprint').innerText = JSON.stringify(result.fingerprints.persistentFp) || 'Not available';
-            updateProgressBar();
-        }).catch(handleError);
-
-        // Canvas Fingerprint
-        var canvasprint = new Canvasprint().get();
-        document.getElementById('canvasFingerprint').innerText = canvasprint || 'Not available';
-        updateProgressBar();
-
-        // ghostip IP Data
-        ghostip.getIPData().then(ipData => {
-            const ipDataElement = document.getElementById('ipData');
-
-            if (ipData && ipData.ip) {
-                // Format IP data for display
-                const formattedData = `
-                    <strong>IP:</strong> ${ipData.ip}<br>
-                    <strong>Country:</strong> ${ipData.country || 'Not available'}<br>
-                    <strong>Region:</strong> ${ipData.region || 'Not available'}<br>
-                    <strong>City:</strong> ${ipData.city || 'Not available'}
-                `;
-                ipDataElement.innerHTML = formattedData;
-            } else {
-                ipDataElement.innerText = 'IP Data Not available';
-            }
-
-            updateProgressBar();
-        }).catch(handleError);
-
-        // ghostdevice Information
-        ghostDeviceInfo.getDeviceInfo().then(deviceInfo => {
-            const ghostDeviceInfoElement = document.getElementById('ghostDeviceInfo');
-
-            if (deviceInfo && Object.keys(deviceInfo).length > 0) {
-                ghostDeviceInfoElement.innerText = JSON.stringify(deviceInfo, null, 2);
-            } else {
-                ghostDeviceInfoElement.innerText = 'Not available';
-            }
-
-            updateProgressBar();
-        }).catch(() => {
-            const ghostDeviceInfoElement = document.getElementById('ghostDeviceInfo');
-            ghostDeviceInfoElement.innerText = 'Not available';
-            updateProgressBar();
-        });
-
-
-        function showNotification(message, type = 'success') {
-            const notificationContainer = document.getElementById('notification');
-
-            // Clear existing notifications
-            notificationContainer.innerHTML = '';
-
-            // Map notification types to Bootstrap alert classes
-            const alertClasses = {
-                'success': 'alert-success',
-                'error': 'alert-danger'
             };
 
-            // Create alert element
-            const alertElement = document.createElement('div');
-            alertElement.classList.add('alert', alertClasses[type], 'alert', 'fade', 'show');
-            alertElement.innerHTML = `
-                <strong>${type === 'success' ? 'Success!' : 'Error!'}</strong> ${message}
-            `;
+            const formatComponents = (components) => {
+                return JSON.stringify(components, null, 2);
+            };
 
-            // Append alert to container
-            notificationContainer.appendChild(alertElement);
+            return { safeCall, formatComponents };
+        })();
 
-            // Automatically close the notification after 5 seconds (adjust as needed)
-            setTimeout(() => {
-                alertElement.classList.remove('show');
-                alertElement.classList.add('hide');
-            }, 3000);
-
-            // If it's an error notification, you might want to log it to the console as well
-            if (type === 'error') {
-                console.error(message);
-            }
-        }
-
-        function copyToClipboard() {
-            const ghostDeviceInfoElement = document.getElementById('ghostDeviceInfo');
-            const tempTextArea = document.createElement('textarea');
-
-            // Use innerText instead of value to preserve formatting
-            tempTextArea.innerText = ghostDeviceInfoElement.innerText;
-
-            document.body.appendChild(tempTextArea);
-            tempTextArea.select();
-
-            try {
-                // Use execCommand only for desktop browsers
-                const successful = document.execCommand('copy');
-                const message = successful ? 'Copied to clipboard!' : 'Copy to clipboard failed';
-                showNotification(message, successful ? 'success' : 'danger');
-            } catch (err) {
-                console.error('Unable to copy to clipboard', err);
-            } finally {
-                document.body.removeChild(tempTextArea);
-            }
-        }
-
-        function handleError(error) {
-            console.error('An error occurred:', error);
-            updateProgressBar();
-        }
-
-        function containsNotAvailable(element) {
-            return element.innerText.trim().toLowerCase() === 'not available';
-        }
-
-        function updateProgressBar() {
-            // Increment the completed methods counter
-            completedMethods++;
-
-            // Check if all methods are completed
-            if (completedMethods === totalMethods) {
-                // Hide the loader after a delay for smoother transition
-                setTimeout(() => {
-                    document.querySelector('.loader-container').style.opacity = '0';
-                    setTimeout(() => {
-                        document.querySelector('.loader-container').style.display = 'none';
-                        document.querySelector('.dashboard').style.display = 'flex';
-                        document.querySelector('.dashboard').style.opacity = '1';
-                    }, 500); // Delay for smoother transition
-                }, 500);
-            }
-
-            // Update the progress bar width
-            const progress = (completedMethods / totalMethods) * 100;
-            document.querySelector('.progress-bar').style.width = `${progress}%`;
-
-            // Check for errors
-            const errorElements = document.querySelectorAll('.unique-id-content');
-            let hasErrors = false;
-
-            Array.from(errorElements).forEach((element) => {
-                if (element.innerText.trim().toLowerCase() === 'error') {
-                    hasErrors = true;
+        // --- LibraryManager Module ---
+        const LibraryManager = (() => {
+            const libraries = {
+                thumbmarkjs: {
+                    name: 'ThumbmarkJS',
+                    check: () => window.ThumbmarkJS && typeof window.ThumbmarkJS.getFingerprintData === 'function',
+                    status: 'pending',
+                    message: ''
+                },
+                imprintjs: {
+                    name: 'ImprintJS',
+                    check: () => typeof imprint !== 'undefined' && typeof imprint.test === 'function',
+                    status: 'pending',
+                    message: ''
+                },
+                fingerprintjs: {
+                    name: 'FingerprintJS',
+                    check: () => window.fingerprintJSVisitorId && typeof window.fingerprintJSVisitorId === 'string',
+                    status: 'pending',
+                    message: ''
+                },
+                clientjs: {
+                    name: 'ClientJS',
+                    check: () => typeof ClientJS !== 'undefined',
+                    status: 'pending',
+                    message: ''
+                },
+                detectincognitojs: {
+                    name: 'DetectIncognitoJS',
+                    check: () => typeof window.detectIncognito === 'function',
+                    status: 'pending',
+                    message: ''
+                },
+                getBrowserFingerprint: {
+                    name: 'get-browser-fingerprint',
+                    check: () => typeof window.getBrowserFingerprint === 'function',
+                    status: 'pending',
+                    message: ''
+                },
+                opfsFingerprint: {
+                    name: 'OPFS Fingerprint',
+                    check: () => typeof fingerprint === 'function',
+                    status: 'pending',
+                    message: ''
+                },
+                canvasFingerprint: {
+                    name: 'Canvas Fingerprint',
+                    check: () => typeof Canvasprint === 'function',
+                    status: 'pending',
+                    message: ''
+                },
+                ghostIPData: {
+                    name: 'GhostIP',
+                    check: () => typeof ghostip !== 'undefined' && typeof ghostip.getIPData === 'function',
+                    status: 'pending',
+                    message: ''
+                },
+                ghostDeviceInfo: {
+                    name: 'GhostDeviceInfo',
+                    check: () => typeof ghostDeviceInfo !== 'undefined' && typeof ghostDeviceInfo.getDeviceInfo === 'function',
+                    status: 'pending',
+                    message: ''
+                },
+                browserSignature: {
+                    name: 'BrowserSignature',
+                    check: () => typeof browserSignature === 'function',
+                    status: 'pending',
+                    message: ''
+                },
+                cbf: {
+                    name: 'CBF Modules',
+                    check: () => typeof window.cbfApp !== 'undefined',
+                    status: 'pending',
+                    message: ''
+                },
+                cuid: {
+                    name: 'CUID',
+                    check: () => typeof window.cuid === 'function',
+                    status: 'pending',
+                    message: ''
                 }
-            });
+            };
 
-            if (hasErrors) {
-                // All methods resulted in errors, hide the loader and display an error message
-                document.querySelector('.loader-container').style.display = 'none';
-                alert('An error occurred while fetching fingerprint data.');
+            const updateStatus = (key, status, message) => {
+                if (libraries[key]) {
+                    libraries[key].status = status;
+                    libraries[key].message = message;
+                    console.log(`[LibraryManager] - ${libraries[key].name} - ${status.toUpperCase()}: ${message}`);
+                }
+            };
+
+            const verifyLibraries = () => {
+                const status = {};
+                Object.keys(libraries).forEach(key => {
+                    const lib = libraries[key];
+                    const isLoaded = lib.check();
+                    lib.status = isLoaded ? 'success' : 'error';
+                    lib.message = isLoaded
+                        ? `${lib.name} loaded successfully.`
+                        : `${lib.name} failed to load.`;
+                    status[key] = lib.message;
+                    console.log(`[LibraryManager] - ${lib.name} - ${lib.status.toUpperCase()}: ${lib.message}`);
+                });
+                return status;
+            };
+
+            return { verifyLibraries, updateStatus, libraries };
+        })();
+        window.LibraryManager = LibraryManager;
+
+        const logLibrary = (name, status, detail, libraryObject) => {
+            const key = `${name.toLowerCase().replace(/\s+/g, '')}_loaded`;
+            if (!sessionStorage.getItem(key)) {
+                const message = `[${name}] - ${status}: Loaded successfully${detail ? ` (${detail})` : ''}`;
+                console.log(message, libraryObject);
+                sessionStorage.setItem(key, 'true');
             }
-        }
+        };
+
+        const loadScript = (src, name) => {
+            return new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = src;
+                script.onload = () => {
+                    logLibrary(name, 'SUCCESS', null, window[name]);
+                    if (window.LibraryManager && typeof window.LibraryManager.updateStatus === 'function') {
+                        window.LibraryManager.updateStatus(
+                            name.toLowerCase().replace(/\s+/g, ''),
+                            'success',
+                            `${name} loaded successfully.`
+                        );
+                    }
+                    resolve();
+                };
+                script.onerror = () => {
+                    const errorMessage = `Failed to load ${name}.`;
+                    console.error(`[${name}] - ERROR:`, errorMessage);
+                    if (window.LibraryManager && typeof window.LibraryManager.updateStatus === 'function') {
+                        window.LibraryManager.updateStatus(
+                            name.toLowerCase().replace(/\s+/g, ''),
+                            'error',
+                            errorMessage
+                        );
+                    }
+                    reject(new Error(errorMessage));
+                };
+                document.head.appendChild(script);
+            });
+        };
+
+        const loadAllScripts = async () => {
+            try {
+                const scriptsToLoad = [
+                    {
+                        src: "https://cdn.jsdelivr.net/npm/imprintjs@1.0.0/dist/imprint.min.js",
+                        name: 'ImprintJS'
+                    },
+                    {
+                        src: "https://cdn.jsdelivr.net/npm/clientjs@0.2.1/dist/client.base.min.js",
+                        name: 'ClientJS'
+                    },
+                    {
+                        src: "static/opfs.min.js",
+                        name: 'OPFS Fingerprint'
+                    },
+                    {
+                        src: "static/canvasprint.js",
+                        name: 'Canvas Fingerprint'
+                    },
+                    {
+                        src: "https://cdn.jsdelivr.net/npm/browser-signature@1.0.5/dist/browser-signature.umd.js",
+                        name: 'BrowserSignature'
+                    },
+                    {
+                        src: "static/ghostip.js",
+                        name: 'ghostip'
+                    },
+                    {
+                        src: "static/ghostdevice.js",
+                        name: 'ghostDeviceInfo'
+                    }
+                ];
+
+                for (const script of scriptsToLoad) {
+                    await loadScript(script.src, script.name);
+                }
+
+                if (window.LibraryManager && typeof window.LibraryManager.verifyLibraries === 'function') {
+                    window.LibraryManager.verifyLibraries();
+                }
+                console.log('[App] - INFO: All external scripts loaded successfully.');
+            } catch (error) {
+                console.error('[App] - ERROR: Failed to load one or more external scripts.', error);
+            }
+        };
+        window.loadAllScripts = loadAllScripts;
+
+        // --- Fingerprint Collectors Module ---
+        const FingerprintCollectors = (() => {
+            const collectorsConfig = [
+                {
+                    key: 'thumbmarkjs',
+                    collect: async () => {
+                        console.log('[FingerprintCollectors] - INFO: Collecting ThumbmarkJS...');
+                        if (!window.ThumbmarkJS || typeof window.ThumbmarkJS.getFingerprintData !== 'function') {
+                            const errorMessage = 'ThumbmarkJS is not loaded or getFingerprintData is unavailable.';
+                            console.error('[FingerprintCollectors ] - ERROR:', errorMessage);
+                            return { error: errorMessage };
+                        }
+
+                        if (typeof window.ThumbmarkJS.setOption === 'function') {
+                            window.ThumbmarkJS.setOption('exclude', ['webgl', 'system.browser.version']);
+                            console.log('[FingerprintCollectors] - INFO: ThumbmarkJS options set.');
+                        }
+
+                        const thumbmarkData = await Utils.safeCall(
+                            () => window.ThumbmarkJS.getFingerprintData(),
+                            'ThumbmarkJS.getFingerprintData'
+                        );
+                        const thumbmarkFingerprint = await Utils.safeCall(
+                            () => window.ThumbmarkJS.getFingerprint(),
+                            'ThumbmarkJS.getFingerprint'
+                        );
+
+                        return {
+                            ...(thumbmarkData.success ? thumbmarkData.data : { error: thumbmarkData.error }),
+                            fingerprint: thumbmarkFingerprint.success ? thumbmarkFingerprint.data : null
+                        };
+                    }
+                },
+                {
+                    key: 'imprintjs',
+                    collect: async () => {
+                        console.log('[FingerprintCollectors] - INFO: Collecting ImprintJS...');
+                        if (!imprint || typeof imprint.test !== 'function') {
+                            const errorMessage = 'ImprintJS is not loaded or test method is unavailable.';
+                            console.error('[FingerprintCollectors] - ERROR:', errorMessage);
+                            return { error: errorMessage };
+                        }
+                        const browserTests = [
+                            "audio","availableScreenResolution","canvas","colorDepth","cookies","cpuClass","deviceDpi",
+                            "doNotTrack","indexedDb","installedFonts","language","localStorage","pixelRatio","platform",
+                            "plugins","processorCores","screenResolution","timezoneOffset","touchSupport","userAgent","webGl"
+                        ];
+                        const imprintData = await Utils.safeCall(
+                            () => imprint.test(browserTests),
+                            'ImprintJS.test'
+                        );
+                        return imprintData.success ? imprintData.data : { error: imprintData.error };
+                    }
+                },
+                {
+                    key: 'fingerprintjs',
+                    collect: async () => {
+                        console.log('[FingerprintCollectors] - INFO: Collecting FingerprintJS...');
+                        if (!window.fingerprintJSVisitorId) {
+                            const errorMessage = 'FingerprintJS Visitor ID is not available.';
+                            console.error('[FingerprintCollectors] - ERROR:', errorMessage);
+                            return { error: errorMessage };
+                        }
+                        return { visitorId: window.fingerprintJSVisitorId };
+                    }
+                },
+                {
+                    key: 'clientjs',
+                    collect: async () => {
+                        console.log('[FingerprintCollectors] - INFO: Collecting ClientJS...');
+                        if (!ClientJS) {
+                            const errorMessage = 'ClientJS is not loaded.';
+                            console.error('[FingerprintCollectors] - ERROR:', errorMessage);
+                            return { error: errorMessage };
+                        }
+                        try {
+                            const client = new ClientJS();
+                            const clientData = {
+                                fingerprint: client.getFingerprint(),
+                                browserName: client.getBrowser(),
+                                browserVersion: client.getBrowserVersion(),
+                                browserMajorVersion: client.getBrowserMajorVersion(),
+                                isIE: client.isIE(),
+                                isChrome: client.isChrome(),
+                                isFirefox: client.isFirefox(),
+                                isSafari: client.isSafari(),
+                                isOpera: client.isOpera(),
+                                engine: client.getEngine(),
+                                engineVersion: client.getEngineVersion(),
+                                os: client.getOS(),
+                                osVersion: client.getOSVersion(),
+                                isWindows: client.isWindows(),
+                                isMac: client.isMac(),
+                                isLinux: client.isLinux(),
+                                isUbuntu: client.isUbuntu(),
+                                isSolaris: client.isSolaris(),
+                                device: client.getDevice(),
+                                deviceType: client.getDeviceType(),
+                                deviceVendor: client.getDeviceVendor(),
+                                cpu: client.getCPU(),
+                                isMobile: client.isMobile(),
+                                isMobileMajor: client.isMobileMajor(),
+                                isMobileAndroid: client.isMobileAndroid(),
+                                isMobileOpera: client.isMobileOpera(),
+                                isMobileWindows: client.isMobileWindows(),
+                                isMobileBlackBerry: client.isMobileBlackBerry(),
+                                isMobileIOS: client.isMobileIOS(),
+                                isIphone: client.isIphone(),
+                                isIpad: client.isIpad(),
+                                isIpod: client.isIpod(),
+                                screenPrint: client.getScreenPrint(),
+                                colorDepth: client.getColorDepth(),
+                                currentResolution: client.getCurrentResolution(),
+                                availableResolution: client.getAvailableResolution(),
+                                deviceXDPI: client.getDeviceXDPI(),
+                                deviceYDPI: client.getDeviceYDPI(),
+                                plugins: Array.isArray(client.getPlugins()) ? client.getPlugins() : [],
+                                isJava: client.isJava(),
+                                getJavaVersion: (() => {
+                                    try {
+                                        return client.getJavaVersion();
+                                    } catch (error) {
+                                        console.warn('[ClientJS] - WARN: Java detection not available', error);
+                                        return 'Java detection not available';
+                                    }
+                                })(),
+                                isFlash: client.isFlash(),
+                                getFlashVersion: (() => {
+                                    try {
+                                        return client.getFlashVersion();
+                                    } catch (error) {
+                                        console.warn('[ClientJS] - WARN: Flash detection not available', error);
+                                        return 'Flash detection not available';
+                                    }
+                                })(),
+                                isSilverlight: client.isSilverlight(),
+                                getSilverlightVersion: client.getSilverlightVersion(),
+                                mimeTypes: Array.isArray(client.getMimeTypes()) ? client.getMimeTypes() : [],
+                                isMimeTypes: client.isMimeTypes(),
+                                isFont: client.isFont(),
+                                fonts: Array.isArray(client.getFonts()) ? client.getFonts() : [],
+                                isLocalStorage: client.isLocalStorage(),
+                                isSessionStorage: client.isSessionStorage(),
+                                isCookie: client.isCookie(),
+                                timeZone: client.getTimeZone(),
+                                language: client.getLanguage(),
+                                systemLanguage: client.getSystemLanguage(),
+                                isCanvas: client.isCanvas(),
+                                canvasPrint: client.getCanvasPrint(),
+                                getBrowserData: client.getBrowserData(),
+                                getCustomFingerprint: client.getCustomFingerprint()
+                            };
+                            console.log('[FingerprintCollectors] - SUCCESS: ClientJS data:', clientData);
+                            return clientData;
+                        } catch (error) {
+                            console.error('[FingerprintCollectors] - ERROR: ClientJS:', error);
+                            return { error: error.toString() };
+                        }
+                    }
+                },
+                {
+                    key: 'detectincognitojs',
+                    collect: async () => {
+                        console.log('[FingerprintCollectors] - INFO: Collecting DetectIncognitoJS...');
+                        if (!window.detectIncognito) {
+                            const errorMessage = 'DetectIncognitoJS is not loaded.';
+                            console.error('[FingerprintCollectors] - ERROR:', errorMessage);
+                            return { error: errorMessage };
+                        }
+                        const detectIncognitoResult = await Utils.safeCall(
+                            () => window.detectIncognito(),
+                            'DetectIncognitoJS.detectIncognito'
+                        );
+                        return detectIncognitoResult.success
+                            ? detectIncognitoResult.data
+                            : { error: detectIncognitoResult.error };
+                    }
+                },
+                {
+                    key: 'getBrowserFingerprint',
+                    collect: async () => {
+                        console.log('[FingerprintCollectors] - INFO: Collecting get-browser-fingerprint...');
+                        if (!window.getBrowserFingerprint) {
+                            const errorMessage = 'get-browser-fingerprint is not loaded.';
+                            console.error('[FingerprintCollectors] - ERROR:', errorMessage);
+                            return { error: errorMessage };
+                        }
+                        const options = { hardwareOnly: true, debug: false };
+                        const fingerprintData = await Utils.safeCall(
+                            () => window.getBrowserFingerprint(options),
+                            'getBrowserFingerprint'
+                        );
+                        return fingerprintData.success
+                            ? fingerprintData.data
+                            : { error: fingerprintData.error };
+                    }
+                },
+                {
+                    key: 'opfsFingerprint',
+                    collect: async () => {
+                        console.log('[FingerprintCollectors] - INFO: Collecting OPFS Fingerprint...');
+                        if (typeof fingerprint !== 'function') {
+                            const errorMessage = 'OPFS Fingerprint function is not available.';
+                            console.error('[FingerprintCollectors] - ERROR:', errorMessage);
+                            return { error: errorMessage };
+                        }
+                        try {
+                            const result = await fingerprint();
+                            return {
+                                fingerprint: result.fingerprints?.uniqueFp || 'Not available',
+                                additionalInfo: result.profile || {}
+                            };
+                        } catch (error) {
+                            console.error('[FingerprintCollectors] - ERROR: OPFS Fingerprint:', error);
+                            return { error: error.toString() };
+                        }
+                    }
+                },
+                {
+                    key: 'canvasFingerprint',
+                    collect: async () => {
+                        console.log('[FingerprintCollectors] - INFO: Collecting Canvas Fingerprint...');
+                        if (typeof Canvasprint !== 'function') {
+                            const errorMessage = 'Canvasprint is not available.';
+                            console.error('[FingerprintCollectors] - ERROR:', errorMessage);
+                            return { error: errorMessage };
+                        }
+                        try {
+                            const canvasprint = new Canvasprint().get();
+                            return canvasprint || { error: 'Canvasprint failed to generate fingerprint.' };
+                        } catch (error) {
+                            console.error('[FingerprintCollectors] - ERROR: Canvas Fingerprint:', error);
+                            return { error: error.toString() };
+                        }
+                    }
+                },
+                {
+                    key: 'ghostIPData',
+                    collect: async () => {
+                        console.log('[FingerprintCollectors] - INFO: Collecting GhostIP...');
+                        if (typeof ghostip === 'undefined' || typeof ghostip.getIPData !== 'function') {
+                            const errorMessage = 'GhostIP is not loaded or getIPData is unavailable.';
+                            console.error('[FingerprintCollectors] - ERROR:', errorMessage);
+                            return { error: errorMessage };
+                        }
+                        try {
+                            const ipData = await ghostip.getIPData();
+                            if (ipData && ipData.ip) {
+                                return {
+                                    ip: ipData.ip,
+                                    country: ipData.country || 'Not available',
+                                    region: ipData.region || 'Not available',
+                                    city: ipData.city || 'Not available'
+                                };
+                            }
+                            return { error: 'IP Data not available.' };
+                        } catch (error) {
+                            console.error('[FingerprintCollectors] - ERROR: GhostIP:', error);
+                            return { error: error.toString() };
+                        }
+                    }
+                },
+                {
+                    key: 'ghostDeviceInfo',
+                    collect: async () => {
+                        console.log('[FingerprintCollectors] - INFO: Collecting GhostDeviceInfo...');
+                        if (typeof ghostDeviceInfo === 'undefined' || typeof ghostDeviceInfo.getDeviceInfo !== 'function') {
+                            const errorMessage = 'GhostDeviceInfo is not loaded or getDeviceInfo is unavailable.';
+                            console.error('[FingerprintCollectors] - ERROR:', errorMessage);
+                            return { error: errorMessage };
+                        }
+                        try {
+                            const deviceInfo = await ghostDeviceInfo.getDeviceInfo();
+                            if (deviceInfo && Object.keys(deviceInfo).length > 0) {
+                                return deviceInfo;
+                            }
+                            return { error: 'Device information not available.' };
+                        } catch (error) {
+                            console.error('[FingerprintCollectors] - ERROR: GhostDeviceInfo:', error);
+                            return { error: error.toString() };
+                        }
+                    }
+                },
+                {
+                    key: 'browserSignature',
+                    collect: async () => {
+                        console.log('[FingerprintCollectors] - INFO: Collecting BrowserSignature...');
+                        if (typeof browserSignature !== 'function') {
+                            const errorMessage = 'BrowserSignature is not loaded.';
+                            console.error('[FingerprintCollectors] - ERROR:', errorMessage);
+                            return { error: errorMessage };
+                        }
+                        try {
+                            const signature = browserSignature();
+                            console.log('[FingerprintCollectors] - INFO: BrowserSignature:', signature);
+                            return signature;
+                        } catch (error) {
+                            console.error('[FingerprintCollectors] - ERROR: BrowserSignature error:', error);
+                            return { error: error.toString() };
+                        }
+                    }
+                },
+                {
+                    key: 'cuid',
+                    collect: async () => {
+                        console.log('[FingerprintCollectors] - INFO: Collecting cuid data...');
+                        if (!window.cuid) {
+                            const errorMessage = 'cuid is not loaded.';
+                            console.error('[FingerprintCollectors] - ERROR:', errorMessage);
+                            return { error: errorMessage };
+                        }
+                        try {
+                            const cuidData = window.cuid();
+                            console.log('[FingerprintCollectors] - INFO: cuid:', cuidData);
+                            return cuidData;
+                        } catch (error) {
+                            console.error('[FingerprintCollectors] - ERROR: cuid:', error);
+                            return { error: error.toString() };
+                        }
+                    }
+                }
+            ];
+
+            const collectAllFingerprints = async () => {
+                console.log('[FingerprintCollectors] - INFO: Starting collection...');
+                const results = {};
+                for (const collector of collectorsConfig) {
+                    const result = await collector.collect();
+                    results[collector.key] = result;
+                }
+                console.log('[FingerprintCollectors] - SUCCESS: All results:', results);
+                return results;
+            };
+
+            return { collectAllFingerprints };
+        })();
+
+        // --- Application Module ---
+        const App = (() => {
+            let loaderContainer = null;
+            let dashboard = null;
+            let collectButton = null;
+            let crossBrowserIdElement = null;
+
+            const init = async () => {
+                loaderContainer = document.querySelector('.loader-container');
+                dashboard = document.querySelector('#dashboard-container');
+                collectButton = document.querySelector('.refresh-button');
+                crossBrowserIdElement = document.getElementById('cross-browser-id');
+
+                if (collectButton) {
+                    collectButton.addEventListener('click', handleCollectButton);
+                }
+
+                try {
+                    await waitForFingerprintJSVisitorId();
+                } catch (error) {
+                    console.error('[App] - ERROR:', error);
+                    if (loaderContainer) loaderContainer.classList.remove('active');
+                    if (dashboard) {
+                        dashboard.innerHTML = `Failed to obtain FingerprintJS Visitor ID: ${error.message}`;
+                        dashboard.classList.add('show');
+                    }
+                    return;
+                }
+
+                await loadAllScripts();
+                console.log('[App] - INFO: Application initialized.');
+                if (window.LibraryManager && typeof window.LibraryManager.verifyLibraries === 'function') {
+                    window.LibraryManager.verifyLibraries();
+                }
+
+                // Initialize Bootstrap Tooltip for the Cross-Browser ID
+                const crossBrowserIdEl = document.getElementById('cross-browser-id');
+                if (crossBrowserIdEl) {
+                    const tooltip = new bootstrap.Tooltip(crossBrowserIdEl);
+                }
+            };
+
+            const waitForFingerprintJSVisitorId = () => {
+                return new Promise((resolve, reject) => {
+                    const checkInterval = setInterval(() => {
+                        if (window.fingerprintJSVisitorId) {
+                            clearInterval(checkInterval);
+                            resolve();
+                        }
+                    }, 100);
+                    setTimeout(() => {
+                        clearInterval(checkInterval);
+                        reject(new Error('Timeout: fingerprintJSVisitorId was not set.'));
+                    }, 5000);
+                });
+            };
+
+            const handleCollectButton = async () => {
+                if (loaderContainer) loaderContainer.classList.add('active');
+                console.log('[App] - INFO: Collect button clicked.');
+                let allResults = null;
+
+                try {
+                    allResults = await FingerprintCollectors.collectAllFingerprints();
+                    console.log('[App] - INFO: Fingerprint results:', allResults);
+
+                    if (loaderContainer) loaderContainer.classList.remove('active');
+                    if (dashboard) {
+                        dashboard.classList.add('show');
+                        updateDashboardUI(allResults);
+                        attachJsonToggles();
+                    }
+
+                    // Show final JSON if needed
+                    const fingerprintResultPre = document.getElementById('fingerprint-result');
+                    if (fingerprintResultPre) {
+                        fingerprintResultPre.textContent = JSON.stringify(allResults, null, 2);
+                        fingerprintResultPre.style.display = 'block';
+                    }
+
+                    // If cross-browser function is available
+                    if (window.cbfApp && typeof window.cbfApp.calculateAndDisplay === 'function') {
+                        const cbfValue = window.cbfApp.calculateAndDisplay(allResults);
+                        if (crossBrowserIdElement) {
+                            crossBrowserIdElement.textContent = `Cross-Browser ID: ${cbfValue}`;
+                            document.getElementById('cross-browser-id-container').style.display = 'block';
+                        }
+                    } else {
+                        console.error('[App] - ERROR: cbfApp.calculateAndDisplay is not available.');
+                    }
+
+                } catch (error) {
+                    console.error('[App] - ERROR during collection:', error);
+                    if (loaderContainer) loaderContainer.classList.remove('active');
+                    if (dashboard) {
+                        dashboard.innerHTML = `An unexpected error occurred: ${error.toString()}`;
+                        dashboard.classList.add('show');
+                    }
+                }
+            };
+
+            function attachJsonToggles() {
+                document.querySelectorAll('.unique-id').forEach(container => {
+                    const contentEl = container.querySelector('.unique-id-content');
+                    const jsonContainer = container.querySelector('.json-container');
+                    if (contentEl && jsonContainer) {
+                        contentEl.addEventListener('click', () => {
+                            jsonContainer.classList.toggle('show');
+                        });
+                    }
+                });
+            }
+
+            function updateDashboardUI(data) {
+                if (!dashboard) return;
+                dashboard.innerHTML = '';
+
+                // Left Column: Fingerprint IDs
+                const leftColumn = document.createElement('div');
+                leftColumn.classList.add('dashboard-card');
+
+                const leftTitle = document.createElement('h5');
+                leftTitle.classList.add('dashboard-title');
+                leftTitle.innerHTML = 'Fingerprint IDs <small class="text-muted fw-normal">(click to expand for more info)</small>';
+                leftColumn.appendChild(leftTitle);
+
+                const fingerprintKeys = [
+                    'thumbmarkjs',
+                    'imprintjs',
+                    'fingerprintjs',
+                    'clientjs',
+                    'getBrowserFingerprint',
+                    'opfsFingerprint',
+                    'canvasFingerprint',
+                    'browserSignature',
+                    'cuid'
+                ];
+
+                fingerprintKeys.forEach(key => {
+                    const uniqueIdDiv = document.createElement('div');
+                    uniqueIdDiv.classList.add('unique-id');
+
+                    const label = document.createElement('label');
+                    label.classList.add('unique-id-label');
+
+                    let labelText = key;
+                    if (key === 'thumbmarkjs') labelText = 'ThumbmarkJS';
+                    else if (key === 'imprintjs') labelText = 'ImprintJS';
+                    else if (key === 'fingerprintjs') labelText = 'FingerprintJS';
+                    else if (key === 'clientjs') labelText = 'ClientJS';
+                    else if (key === 'getBrowserFingerprint') labelText = 'get-browser-fingerprint';
+                    else if (key === 'opfsFingerprint') labelText = 'OPFS Fingerprint';
+                    else if (key === 'canvasFingerprint') labelText = 'Canvas Fingerprint';
+                    else if (key === 'browserSignature') labelText = 'BrowserSignature';
+                    else if (key === 'cuid') labelText = 'CUID';
+
+                    label.innerHTML = `<i class="fas fa-fingerprint"></i> ${labelText}:`;
+                    uniqueIdDiv.appendChild(label);
+
+                    const content = document.createElement('p');
+                    content.classList.add('unique-id-content');
+
+                    let displayValue = 'Not Available';
+                    let jsonContainer = null;
+
+                    if (data[key] && !data[key].error) {
+                        if (typeof data[key] === 'object') {
+                            if (key === 'fingerprintjs') {
+                                displayValue = data[key].visitorId || 'Not Available';
+                            } else if (key === 'opfsFingerprint') {
+                                displayValue = data[key].fingerprint || 'Not Available';
+                            } else {
+                                displayValue = data[key].fingerprint
+                                    || data[key].visitorId
+                                    || JSON.stringify(data[key]);
+                            }
+                        } else {
+                            displayValue = data[key];
+                        }
+                    } else if (data[key] && data[key].error) {
+                        displayValue = `Error: ${data[key].error}`;
+                    }
+
+                    content.textContent = displayValue;
+                    uniqueIdDiv.appendChild(content);
+
+                    // If it's an object with no error, provide a JSON toggle
+                    if (typeof data[key] === 'object' && data[key] !== null && !data[key].error) {
+                        jsonContainer = document.createElement('div');
+                        jsonContainer.classList.add('json-container');
+                        jsonContainer.textContent = Utils.formatComponents(data[key]);
+                        uniqueIdDiv.appendChild(jsonContainer);
+
+                        const icon = document.createElement('i');
+                        icon.classList.add('fas', 'fa-chevron-down', 'ms-2');
+                        label.appendChild(icon);
+
+                        uniqueIdDiv.onclick = () => {
+                            jsonContainer.classList.toggle('show');
+                            const toggleIcon = label.querySelector('.fas.fa-chevron-down, .fas.fa-chevron-up');
+                            if (toggleIcon) {
+                                toggleIcon.classList.toggle('fa-chevron-down');
+                                toggleIcon.classList.toggle('fa-chevron-up');
+                            }
+                        };
+                    }
+                    leftColumn.appendChild(uniqueIdDiv);
+                });
+
+                dashboard.appendChild(leftColumn);
+
+                // Right Column: Privacy & IP, plus Detailed Device Info
+                const rightColumn = document.createElement('div');
+                rightColumn.classList.add('dashboard-card');
+
+                const rightTitle = document.createElement('h5');
+                rightTitle.classList.add('dashboard-title');
+                rightTitle.textContent = 'Privacy Information';
+                rightColumn.appendChild(rightTitle);
+
+                // IP Data
+                const ipDataDiv = document.createElement('div');
+                ipDataDiv.classList.add('unique-id');
+                const ipLabel = document.createElement('label');
+                ipLabel.classList.add('unique-id-label');
+                ipLabel.innerHTML = '<i class="fas fa-globe"></i> IP Data:';
+                ipDataDiv.appendChild(ipLabel);
+
+                const ipContent = document.createElement('p');
+                ipContent.classList.add('unique-id-content');
+
+                const ipData = data.ghostIPData || {};
+                const incognitoData = data.detectincognitojs || {};
+
+                ipContent.innerHTML = ipData.ip
+                    ? `${ipData.ip}<br>(${ipData.city}, ${ipData.country})`
+                    : 'Not Available';
+
+                if (incognitoData) {
+                    ipContent.innerHTML += `<br><br> Incognito Mode: <strong>${incognitoData.isPrivate ? 'Yes' : 'No'}</strong>`;
+                    ipContent.innerHTML += `<br> Browser: <strong>${incognitoData.browserName || "N/A"}</strong>`;
+                }
+
+                ipDataDiv.appendChild(ipContent);
+                rightColumn.appendChild(ipDataDiv);
+
+                const deviceInfoTitle = document.createElement('h6');
+                deviceInfoTitle.classList.add('dashboard-title', 'mt-4');
+                deviceInfoTitle.textContent = 'Detailed Device Information';
+                rightColumn.appendChild(deviceInfoTitle);
+
+                const deviceInfo = data.ghostDeviceInfo || {};
+                const deviceInfoSections = [
+                    {
+                        id: 'os',
+                        label: 'Operating System',
+                        icon: 'desktop',
+                        data: {
+                            'OS Name': data.clientjs?.os || 'N/A',
+                            'OS Version': data.clientjs?.osVersion || 'N/A',
+                        }
+                    },
+                    {
+                        id: 'arch',
+                        label: 'Architecture & GPU',
+                        icon: 'microchip',
+                        data: {
+                            'CPU Architecture': deviceInfo.cpu?.architecture || 'N/A',
+                            'GPU Vendor': deviceInfo.graphics?.vendor || 'N/A',
+                            'GPU Renderer': deviceInfo.graphics?.renderer || 'N/A'
+                        }
+                    },
+                    {
+                        id: 'hardware',
+                        label: 'Hardware',
+                        icon: 'cogs',
+                        data: {
+                            'CPU Cores': deviceInfo.cpu?.logicalCores || 'N/A',
+                            'Device Memory': deviceInfo.memory?.deviceMemory
+                                ? `${deviceInfo.memory.deviceMemory} GB` : 'N/A',
+                            'CPU Performance': deviceInfo.cpu?.performanceMetrics?.score
+                                ? `${deviceInfo.cpu.performanceMetrics.score} ${deviceInfo.cpu.performanceMetrics.unit}`
+                                : 'N/A',
+                            'CPU Capabilities': deviceInfo.cpu?.capabilities
+                                ? Object.entries(deviceInfo.cpu.capabilities).map(([k, v]) => `${k}: ${v}`).join(', ')
+                                : 'N/A'
+                        }
+                    },
+                    {
+                        id: 'display',
+                        label: 'Display',
+                        icon: 'tv',
+                        data: {
+                            'Screen Resolution': deviceInfo.display?.screen?.width && deviceInfo.display?.screen?.height
+                                ? `${deviceInfo.display.screen.width}x${deviceInfo.display.screen.height}`
+                                : 'N/A',
+                            'Pixel Density (DPI)': deviceInfo.display?.dpi || 'N/A',
+                            'Color Gamut': deviceInfo.display?.colorGamut || 'N/A',
+                            'HDR Support': deviceInfo.display?.hdrSupport?.hdrSupported ? 'Yes' : 'No',
+                            'Physical Resolution': deviceInfo.display?.resolution?.physical
+                                ? `${deviceInfo.display.resolution.physical.width}x${deviceInfo.display.resolution.physical.height}`
+                                : 'N/A',
+                            'Logical Resolution': deviceInfo.display?.resolution?.logical
+                                ? `${deviceInfo.display.resolution.logical.width}x${deviceInfo.display.resolution.logical.height}`
+                                : 'N/A'
+                        }
+                    },
+                    {
+                        id: 'sensors',
+                        label: 'Sensors',
+                        icon: 'location-arrow',
+                        data: {
+                            'Accelerometer': deviceInfo.sensors?.motion?.accelerometer ? 'Yes' : 'No',
+                            'Gyroscope': deviceInfo.sensors?.motion?.gyroscope ? 'Yes' : 'No',
+                            'Ambient Light Sensor': deviceInfo.sensors?.environmental?.ambientLight ? 'Yes' : 'No',
+                            'Proximity Sensor': deviceInfo.sensors?.proximity?.supported ? 'Yes' : 'No',
+                            'Orientation Sensor': deviceInfo.sensors?.orientation?.absolute ? 'Yes' : 'No',
+                            'Light Sensor': deviceInfo.sensors?.light?.supported ? 'Yes' : 'No'
+                        }
+                    },
+                    {
+                        id: 'connectivity',
+                        label: 'Connectivity',
+                        icon: 'network-wired',
+                        data: {
+                            'Network Type': deviceInfo.network?.connection?.effectiveType || 'N/A',
+                            'Downlink Speed': deviceInfo.network?.connection?.downlink
+                                ? `${deviceInfo.network.connection.downlink} Mbps`
+                                : 'N/A',
+                            'Round-Trip Time (RTT)': deviceInfo.network?.connection?.rtt
+                                ? `${deviceInfo.network.connection.rtt} ms`
+                                : 'N/A',
+                            'Data Saver': deviceInfo.network?.connection?.saveData ? 'Yes' : 'No',
+                            'Online Status': deviceInfo.network?.onLine ? 'Yes' : 'No',
+                            'Latency': deviceInfo.network?.performanceMetrics?.latency
+                                ? `${deviceInfo.network.performanceMetrics.latency} seconds`
+                                : 'N/A',
+                            'Local IPs': deviceInfo.network?.localIPs?.length > 0
+                                ? deviceInfo.network.localIPs.join(', ')
+                                : 'N/A'
+                        }
+                    },
+                    {
+                        id: 'battery',
+                        label: 'Battery Information',
+                        icon: 'battery-half',
+                        data: {
+                            'Charging Status': deviceInfo.battery?.charging ? 'Yes' : 'No',
+                            'Battery Level': deviceInfo.battery?.level !== undefined
+                                ? `${deviceInfo.battery.level}%`
+                                : 'N/A',
+                            'Power Source': deviceInfo.battery?.powerSource || 'N/A',
+                            'Charging Time': deviceInfo.battery?.chargingTime || 'N/A',
+                            'Discharging Time': deviceInfo.battery?.dischargingTime || 'N/A',
+                            'Battery Temperature': deviceInfo.battery?.temperature || 'N/A',
+                            'Battery Voltage': deviceInfo.battery?.voltage || 'N/A',
+                            'Battery Capacity': deviceInfo.battery?.capacity || 'N/A',
+                            'Battery Health': deviceInfo.battery?.health || 'N/A'
+                        }
+                    },
+                    {
+                        id: 'inputDevices',
+                        label: 'Input Devices',
+                        icon: 'keyboard',
+                        data: {
+                            'Pointing Devices': deviceInfo.inputDevices?.pointing?.hasPointer ? 'Yes' : 'No',
+                            'Primary Input': deviceInfo.inputDevices?.pointing?.primaryInput || 'N/A',
+                            'Max Pointers': deviceInfo.inputDevices?.pointing?.maxPointers || 'N/A',
+                            'Touchscreen': deviceInfo.inputDevices?.touch?.touchScreen ? 'Yes' : 'No',
+                            'Max Touch Points': deviceInfo.inputDevices?.touch?.maxTouchPoints || 'N/A',
+                            'Keyboard Present': deviceInfo.inputDevices?.keyboard?.present ? 'Yes' : 'No',
+                            'Keyboard Layout': deviceInfo.inputDevices?.keyboard?.layout || 'N/A',
+                            'Virtual Keyboard': deviceInfo.inputDevices?.keyboard?.virtualKeyboard ? 'Yes' : 'No',
+                            'Keyboard Lock': deviceInfo.inputDevices?.keyboard?.keyboardLock ? 'Yes' : 'No',
+                            'Gamepads': deviceInfo.inputDevices?.gamepad?.length > 0
+                                ? deviceInfo.inputDevices.gamepad.join(', ')
+                                : 'N/A',
+                            'VR Display': deviceInfo.inputDevices?.virtualReality?.vrDisplay ? 'Yes' : 'No',
+                            'XR Support': deviceInfo.inputDevices?.virtualReality?.xr ? 'Yes' : 'No',
+                            'Orientation Feature (VR)': deviceInfo.inputDevices?.virtualReality?.features?.orientation ? 'Yes' : 'No',
+                            'Position Feature (VR)': deviceInfo.inputDevices?.virtualReality?.features?.position ? 'Yes' : 'No',
+                            'Platform Authenticator': deviceInfo.inputDevices?.biometric?.platformAuthenticator ? 'Yes' : 'No',
+                            'Credentials': deviceInfo.inputDevices?.biometric?.credentials ? 'Yes' : 'No'
+                        }
+                    },
+                    {
+                        id: 'audioDevices',
+                        label: 'Audio Devices',
+                        icon: 'microphone',
+                        data: {
+                            'Audio Inputs': deviceInfo.audio?.inputs?.length > 0
+                                ? deviceInfo.audio.inputs.map(input => input.label || 'Unnamed Input').join(', ')
+                                : 'N/A',
+                            'Audio Outputs': deviceInfo.audio?.outputs?.length > 0
+                                ? deviceInfo.audio.outputs.map(output => output.label || 'Unnamed Output').join(', ')
+                                : 'N/A',
+                            'Sample Rate': deviceInfo.audio?.capabilities?.sampleRate
+                                ? `${deviceInfo.audio.capabilities.sampleRate} Hz`
+                                : 'N/A',
+                            'Max Channel Count': deviceInfo.audio?.capabilities?.maxChannelCount
+                                ? `${deviceInfo.audio.capabilities.maxChannelCount} Channels`
+                                : 'N/A',
+                            'Audio State': deviceInfo.audio?.capabilities?.state || 'N/A',
+                            'Base Latency': deviceInfo.audio?.capabilities?.baseLatency
+                                ? `${deviceInfo.audio.capabilities.baseLatency} ms`
+                                : 'N/A',
+                            'Output Latency': deviceInfo.audio?.capabilities?.outputLatency || 'N/A',
+                            'Echo Cancellation': deviceInfo.audio?.features?.echoCancellation ? 'Yes' : 'No',
+                            'Noise Suppression': deviceInfo.audio?.features?.noiseSuppression ? 'Yes' : 'No',
+                            'Auto Gain Control': deviceInfo.audio?.features?.autoGainControl ? 'Yes' : 'No',
+                            'MIDI Support': deviceInfo.audio?.features?.midi ? 'Yes' : 'No',
+                            'Spatial Audio': deviceInfo.audio?.features?.spatialAudio ? 'Yes' : 'No'
+                        }
+                    },
+                    {
+                        id: 'storage',
+                        label: 'Storage Information',
+                        icon: 'hdd',
+                        data: {
+                            'Storage Quota': deviceInfo.storage?.quota || 'N/A',
+                            'Persistent Storage': deviceInfo.storage?.persistent || 'N/A',
+                            'Storage Type': deviceInfo.storage?.deviceType?.likely
+                                ? `${deviceInfo.storage.deviceType.likely} (Confidence: ${deviceInfo.storage.deviceType.confidence})`
+                                : 'N/A',
+                            'Average Write Time': deviceInfo.storage?.deviceType?.metrics?.averageWriteTime
+                                ? `${deviceInfo.storage.deviceType.metrics.averageWriteTime} ms`
+                                : 'N/A',
+                            'Write Variance': deviceInfo.storage?.deviceType?.metrics?.variance || 'N/A',
+                            'Write Sample Size': deviceInfo.storage?.deviceType?.metrics?.sampleSize || 'N/A'
+                        }
+                    },
+                    {
+                        id: 'fonts',
+                        label: 'Fonts',
+                        icon: 'font',
+                        data: {
+                            'Installed Fonts': Array.isArray(data.clientjs?.fonts) && data.clientjs.fonts.length > 0
+                                ? data.clientjs.fonts.join(', ')
+                                : 'Fonts data unavailable',
+                            'Is Font Supported': data.clientjs?.isFont ? 'Yes' : 'No',
+                        }
+                    },
+                    {
+                        id: 'storageCapabilities',
+                        label: 'Storage Capabilities',
+                        icon: 'database',
+                        data: {
+                            'Is Local Storage Supported': data.clientjs?.isLocalStorage ? 'Yes' : 'No',
+                            'Is Session Storage Supported': data.clientjs?.isSessionStorage ? 'Yes' : 'No',
+                            'Is Cookie Supported': data.clientjs?.isCookie ? 'Yes' : 'No',
+                        }
+                    },
+                    {
+                        id: 'timeLang',
+                        label: 'Time and Language',
+                        icon: 'clock',
+                        data: {
+                            'Time Zone': data.clientjs?.timeZone || 'N/A',
+                            'Language': data.clientjs?.language || 'N/A',
+                            'System Language': data.clientjs?.systemLanguage || 'N/A',
+                        }
+                    },
+                    {
+                        id: 'canvasWebGL',
+                        label: 'Canvas and WebGL',
+                        icon: 'draw-polygon',
+                        data: {
+                            'Is Canvas Supported': data.clientjs?.isCanvas ? 'Yes' : 'No',
+                            'Canvas Print': data.clientjs?.canvasPrint || 'N/A',
+                        }
+                    }
+                ];
+
+                deviceInfoSections.forEach(section => {
+                    const header = document.createElement('div');
+                    header.classList.add('device-info-header');
+                    header.innerHTML = `<i class="fas fa-${section.icon} me-2"></i> ${section.label} <i class="fas fa-chevron-down"></i>`;
+                    const content = document.createElement('div');
+                    content.classList.add('device-info-content');
+                    content.id = `deviceInfo${section.id.toUpperCase()}`;
+
+                    const ul = document.createElement('ul');
+                    for (const [k, v] of Object.entries(section.data)) {
+                        const li = document.createElement('li');
+                        li.innerHTML = `<strong>${k}:</strong> <span>${v}</span>`;
+                        ul.appendChild(li);
+                    }
+                    content.appendChild(ul);
+
+                    header.onclick = () => {
+                        toggleDeviceInfo(section.id);
+                    };
+                    rightColumn.appendChild(header);
+                    rightColumn.appendChild(content);
+                });
+
+                dashboard.appendChild(rightColumn);
+            }
+
+            function toggleDeviceInfo(section) {
+                const content = document.getElementById(`deviceInfo${section.toUpperCase()}`);
+                const icon = content?.previousElementSibling?.querySelector('.fas.fa-chevron-down, .fas.fa-chevron-up');
+                if (content && icon) {
+                    content.classList.toggle('show');
+                    icon.classList.toggle('fa-chevron-down');
+                    icon.classList.toggle('fa-chevron-up');
+                }
+            }
+
+            return { init };
+        })();
+
+        window.addEventListener('DOMContentLoaded', App.init);
+        window.refreshData = () => {
+            window.location.reload();
+        };
+    })();
     </script>
 
 </body>
-
 </html>
-
