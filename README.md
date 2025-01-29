@@ -50,7 +50,7 @@ For more information on browser fingerprinting, refer to the following resources
 - [Mozilla - Fingerprinting](https://wiki.mozilla.org/Fingerprinting)
 - [W3C - Fingerprinting Guidance](https://www.w3.org/TR/fingerprinting-guidance/)
 
-## 🧩 Cross Browser ID
+## 🧩 Cross Browser ID (Work In Progress... Not completed)
 
 **Cross Browser ID** is a feature that consolidates fingerprint data from multiple browsers to generate a unified identifier. This allows users to understand how consistent their digital fingerprint is across different browsers, enhancing privacy insights.
 
