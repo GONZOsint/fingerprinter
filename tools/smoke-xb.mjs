@@ -11,6 +11,7 @@ import { join, extname, dirname, resolve, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
 import { LAB_CSP } from '../js/core/csp-headers.js';
+import { browserExe } from './browser-paths.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
@@ -19,25 +20,11 @@ const HOST = '127.0.0.1';
 const INCLUDE_HARDENED = process.env.FP_HARDENED === '1';
 
 const BROWSERS = [
-  { id: 'chrome', exe: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe', engine: 'chromium' },
-  {
-    id: 'brave',
-    exe: 'C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe',
-    engine: 'chromium',
-  },
-  { id: 'firefox', exe: 'C:\\Program Files\\Mozilla Firefox\\firefox.exe', engine: 'spawn-report' },
-  {
-    id: 'tor',
-    exe: process.env.FP_TOR_EXE || '',
-    engine: 'spawn-report',
-    hardened: true,
-  },
-  {
-    id: 'mullvad',
-    exe: process.env.FP_MULLVAD_EXE || '',
-    engine: 'spawn-report',
-    hardened: true,
-  },
+  { id: 'chrome', exe: browserExe('chrome'), engine: 'chromium' },
+  { id: 'brave', exe: browserExe('brave'), engine: 'chromium' },
+  { id: 'firefox', exe: browserExe('firefox'), engine: 'spawn-report' },
+  { id: 'tor', exe: browserExe('tor'), engine: 'spawn-report', hardened: true },
+  { id: 'mullvad', exe: browserExe('mullvad'), engine: 'spawn-report', hardened: true },
 ];
 
 const MIME = {
@@ -99,7 +86,7 @@ function startServer() {
 }
 
 async function collectChromium(cfg) {
-  if (!existsSync(cfg.exe)) return { id: cfg.id, error: 'executable missing' };
+  if (!cfg.exe || !existsSync(cfg.exe)) return { id: cfg.id, error: 'executable missing' };
   const browser = await chromium.launch({ headless: true, executablePath: cfg.exe });
   const page = await browser.newPage();
   try {
@@ -129,7 +116,9 @@ async function collectChromium(cfg) {
 }
 
 async function collectSpawn(cfg, timeoutMs = 60000) {
-  if (!existsSync(cfg.exe)) return { id: cfg.id, error: 'executable missing', skipped: true };
+  if (!cfg.exe || !existsSync(cfg.exe)) {
+    return { id: cfg.id, error: 'executable missing (set FP_TOR_EXE / FP_MULLVAD_EXE)', skipped: true };
+  }
   reports.delete(cfg.id);
   const url = `http://${HOST}:${PORT}/?autocollect=1&report=${encodeURIComponent(cfg.id)}`;
   // -url forces http(s); never pass a bare path (Firefox-family may treat it as file://)

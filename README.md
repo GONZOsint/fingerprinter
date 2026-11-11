@@ -22,6 +22,8 @@ npm run test:xb         # Cross-Browser smoke
 npm run test:browsers   # matrix → results/matrix-latest.json
 ```
 
+Optional browser paths (env): `FP_CHROME_EXE`, `FP_BRAVE_EXE`, `FP_FIREFOX_EXE`, `FP_TOR_EXE`, `FP_MULLVAD_EXE`.
+
 ## What you get
 
 1. **XB compare** — portable cross-browser ID (full hash in the profile hero)  

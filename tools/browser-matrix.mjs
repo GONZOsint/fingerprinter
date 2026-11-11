@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
 import { chromium, firefox as pwFirefox } from 'playwright';
 import { LAB_CSP } from '../js/core/csp-headers.js';
+import { browserExe } from './browser-paths.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
@@ -14,31 +15,20 @@ const PORT = 8765;
 const HOST = '127.0.0.1';
 
 const BROWSERS = [
-  {
-    id: 'chrome',
-    exe: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
-    engine: 'chromium',
-  },
-  {
-    id: 'brave',
-    exe: 'C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe',
-    engine: 'chromium',
-  },
-  {
-    id: 'firefox',
-    exe: 'C:\\Program Files\\Mozilla Firefox\\firefox.exe',
-    engine: 'spawn-report',
-  },
+  { id: 'chrome', exe: browserExe('chrome'), engine: 'chromium' },
+  { id: 'brave', exe: browserExe('brave'), engine: 'chromium' },
+  { id: 'firefox', exe: browserExe('firefox'), engine: 'spawn-report' },
   {
     id: 'tor',
-    exe: process.env.FP_TOR_EXE || '',
+    exe: browserExe('tor'),
     engine: 'spawn-report',
-    note: 'Needs Tor circuit; may be slow or block localhost depending on config',
+    note: 'Set FP_TOR_EXE. Needs Tor circuit; may block localhost depending on config',
   },
   {
     id: 'mullvad',
-    exe: process.env.FP_MULLVAD_EXE || '',
+    exe: browserExe('mullvad'),
     engine: 'spawn-report',
+    note: 'Set FP_MULLVAD_EXE',
   },
 ];
 
@@ -122,7 +112,15 @@ async function collectChromium(cfg) {
 }
 
 async function collectSpawnReport(cfg, timeoutMs = 120000) {
-  if (!existsSync(cfg.exe)) return { id: cfg.id, error: `Executable not found: ${cfg.exe}` };
+  if (!cfg.exe || !existsSync(cfg.exe)) {
+    return {
+      id: cfg.id,
+      error: cfg.exe
+        ? `Executable not found: ${cfg.exe}`
+        : `Executable not configured (set FP_${cfg.id.toUpperCase()}_EXE)`,
+      skipped: true,
+    };
+  }
 
   reports.delete(cfg.id);
   const url = pageUrl(cfg.id);

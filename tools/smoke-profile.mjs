@@ -5,6 +5,7 @@ import { readFileSync, existsSync, statSync } from 'node:fs';
 import { join, extname, dirname, resolve, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { LAB_CSP } from '../js/core/csp-headers.js';
+import { requireExe } from './browser-paths.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const PORT = 8791;
@@ -44,7 +45,7 @@ const server = createServer((req, res) => {
 await new Promise((r) => server.listen(PORT, '127.0.0.1', r));
 
 const browser = await chromium.launch({
-  executablePath: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+  executablePath: requireExe('chrome'),
   headless: true,
 });
 const page = await browser.newPage();
