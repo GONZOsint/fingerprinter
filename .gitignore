@@ -1,0 +1,14 @@
+node_modules/
+.DS_Store
+*.log
+
+# Playwright / local browser profiles
+results/profile-*/
+
+# Local matrix / compare dumps (machine-specific)
+results/matrix-*.json
+results/xb-compare.json
+
+# Agent / research scratch
+results/*-search.json
+results/sota-deep-research.*

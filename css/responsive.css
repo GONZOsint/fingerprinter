@@ -1,0 +1,52 @@
+﻿/* ——— Footer ——— */
+.note {
+  margin-top: 1.75rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--line);
+  font-size: 0.78rem;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.note code {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  padding: 0.05em 0.3em;
+  border: 1px solid var(--line);
+  background: #fff;
+}
+
+/* ——— Mobile ——— */
+@media (max-width: 480px) {
+  .actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .btn {
+    width: 100%;
+    text-align: center;
+  }
+
+  .jv-row {
+    grid-template-columns: 1fr;
+    gap: 0.15rem;
+  }
+
+  .profile__id-grid {
+    grid-template-columns: auto 1fr;
+  }
+
+  .profile__identity {
+    font-size: 1.1rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

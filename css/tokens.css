@@ -1,0 +1,54 @@
+﻿:root {
+  --bg: #fafafa;
+  --bg-elevated: #ffffff;
+  --ink: #0a0a0a;
+  --muted: #5c5c5c;
+  --line: #e5e5e5;
+  --line-strong: #0a0a0a;
+  --chip: #f0f0f0;
+  --chip-ink: #0a0a0a;
+  --warn-bg: #0a0a0a;
+  --warn-ink: #fafafa;
+  --ok-bg: #0a0a0a;
+  --ok-ink: #fafafa;
+  --danger: #0a0a0a;
+  --radius: 0;
+  /* Prefer system generics — avoids Firefox font-visibility console spam under RFP */
+  --font-display: system-ui, "Segoe UI", "Helvetica Neue", sans-serif;
+  --font-body: system-ui, "Segoe UI", "Helvetica Neue", sans-serif;
+  --font-mono: ui-monospace, Consolas, "Courier New", monospace;
+  --pad: clamp(0.85rem, 2.5vw, 1.65rem);
+  --max: 1080px;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  color: var(--ink);
+  font-family: var(--font-body);
+  background:
+    linear-gradient(180deg, #ffffff 0%, var(--bg) 48%, #f2f2f2 100%);
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+}
+a:hover {
+  opacity: 0.65;
+}
+

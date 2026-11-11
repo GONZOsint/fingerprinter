@@ -9,7 +9,7 @@ const utils = {
         try {
             return await fn();
         } catch (error) {
-            console.error(`Error executing function:`, error);
+            // Expected gaps (SharedArrayBuffer COOP/COEP, sensor flags) — stay quiet
             return defaultValue;
         }
     },
@@ -31,7 +31,7 @@ const utils = {
         ];
         return clues.every(clue => clue);
     },
-     measurePerformance: async (fn, iterations = 100) => {
+     measurePerformance: async (fn, iterations = 5) => {
         const start = performance.now();
         for (let i = 0; i < iterations; i++) {
              await fn();
@@ -54,7 +54,7 @@ const processorCollector = {
         };
        const performanceScore = await utils.measurePerformance(async () => {
             let result = 0;
-             for (let i = 0; i < 1000000; i++) {
+             for (let i = 0; i < 50000; i++) {
                  result += Math.sqrt(i);
             }
             return result;
@@ -92,7 +92,10 @@ const memoryCollector = {
                 usedJSHeapSize: performance.memory.usedJSHeapSize
             } : 'N/A',
             pressureLevel: typeof performance !== 'undefined' && 'memory' in performance && 'pressureLevel' in performance.memory ? performance.memory.pressureLevel : 'N/A',
-            sharedMemorySupport: await utils.safeExecute(() => typeof window !== 'undefined' && new SharedArrayBuffer(1024) && true, false),
+            sharedMemorySupport: await utils.safeExecute(() => {
+              if (typeof SharedArrayBuffer === 'undefined') return false;
+              return Boolean(new SharedArrayBuffer(1024));
+            }, false),
            performance: await memoryCollector.measureMemoryPerformance()
         };
         return memory;
@@ -338,29 +341,59 @@ const networkCollector = {
     },
    measureNetworkPerformance: async () => {
         return await utils.safeExecute(async () => {
+           // Avoid data:/remote fetch (CSP connect-src). Prefer blob:, then CPU microbench.
            const startTime = performance.now();
-            await fetch('data:text/plain;base64,SGVsbG8sIFdvcmxkIQ==');
-            const endTime = performance.now();
-            return { latency: endTime - startTime, type: 'basic-fetch-test' };
+           try {
+             const blobUrl = URL.createObjectURL(new Blob(['Hello, World!'], { type: 'text/plain' }));
+             try {
+               await fetch(blobUrl, { cache: 'no-store' });
+             } finally {
+               URL.revokeObjectURL(blobUrl);
+             }
+             return { latency: performance.now() - startTime, type: 'blob-fetch-test' };
+           } catch (_) {
+             let x = 0;
+             for (let i = 0; i < 20000; i += 1) x += Math.sqrt(i);
+             return { latency: performance.now() - startTime, type: 'cpu-microbench', checksum: x };
+           }
         }, 'N/A');
     },
    getLocalIPs: async () => {
         return await utils.safeExecute(async () => {
-           const rtcPeerConnection = typeof RTCPeerConnection !== 'undefined' ? new RTCPeerConnection({ iceServers: [] }) : null;
-           if (!rtcPeerConnection) return 'N/A';
-           rtcPeerConnection.createDataChannel('');
+           if (typeof RTCPeerConnection === 'undefined') return [];
+           const rtcPeerConnection = new RTCPeerConnection({ iceServers: [] });
            const ipAddresses = new Set();
-          rtcPeerConnection.onicecandidate = (event) => {
-                if (event.candidate) {
-                    const ipMatch = /([0-9]{1,3}(\.[0-9]{1,3}){3}|[a-f0-9]{1,4}(:[a-f0-9]{1,4}){7})/.exec(event.candidate.candidate);
-                    if (ipMatch) {
-                        ipAddresses.add(ipMatch[1]);
-                    }
-                }
-            };
-            await rtcPeerConnection.createOffer().then(offer => rtcPeerConnection.setLocalDescription(offer));
-           return Array.from(ipAddresses);
-       }, 'N/A');
+           // ICE candidates are async — wait until gathering completes or timeout
+           const ips = await new Promise((resolve) => {
+             const finish = () => {
+               try { rtcPeerConnection.close(); } catch (_) { /* ignore */ }
+               resolve(Array.from(ipAddresses));
+             };
+             const timer = setTimeout(finish, 1200);
+             rtcPeerConnection.onicecandidate = (event) => {
+               if (!event.candidate) {
+                 clearTimeout(timer);
+                 finish();
+                 return;
+               }
+               const ipMatch = /([0-9]{1,3}(\.[0-9]{1,3}){3}|[a-f0-9]{1,4}(:[a-f0-9]{1,4}){7})/.exec(event.candidate.candidate);
+               if (ipMatch) ipAddresses.add(ipMatch[1]);
+             };
+             try {
+               rtcPeerConnection.createDataChannel('');
+               rtcPeerConnection.createOffer()
+                 .then((offer) => rtcPeerConnection.setLocalDescription(offer))
+                 .catch(() => {
+                   clearTimeout(timer);
+                   finish();
+                 });
+             } catch (_) {
+               clearTimeout(timer);
+               finish();
+             }
+           });
+           return ips;
+       }, []);
    }
 };
 
@@ -419,12 +452,18 @@ const inputDeviceCollector = {
        // Removed detailed touch event feature detection as it might involve user interaction
         return touchInfo;
     },
-    getKeyboardInfo: () => ({
-        present: (typeof navigator !== 'undefined' && 'keyboard' in navigator) || (typeof window !== 'undefined' && window.matchMedia('(any-hover: hover)').matches),
-       layout: typeof navigator !== 'undefined' && navigator.keyboard?.getLayoutMap() ? 'Supported' : 'N/A',
-       virtualKeyboard: typeof navigator !== 'undefined' && 'virtualKeyboard' in navigator,
-        keyboardLock: typeof navigator !== 'undefined' && 'keyboard' in navigator && typeof navigator.keyboard !== 'undefined' && 'lock' in navigator.keyboard
-    }),
+    getKeyboardInfo: () => {
+        const kb = typeof navigator !== 'undefined' ? navigator.keyboard : null;
+        return {
+            present:
+                Boolean(kb) ||
+                (typeof window !== 'undefined' && window.matchMedia('(any-hover: hover)').matches),
+            layout: kb && typeof kb.getLayoutMap === 'function' ? 'Supported' : 'N/A',
+            virtualKeyboard: typeof navigator !== 'undefined' && 'virtualKeyboard' in navigator,
+            // Brave may expose `keyboard` as null — never use `in` on null
+            keyboardLock: Boolean(kb && typeof kb === 'object' && 'lock' in kb),
+        };
+    },
 
     getGamepadInfo: async () => {
       if (typeof navigator !== 'undefined' && 'getGamepads' in navigator) {
@@ -471,32 +510,19 @@ const sensorCollector = {
      permissions: await sensorCollector.getSensorPermissions(),
       // Removed realtime sensor data collection
   }),
-  getMotionSensorInfo: async () => {
-      return new Promise(resolve => {
-          if (typeof window === 'undefined' || !window.DeviceMotionEvent) { resolve('N/A'); return; }
-          const motionData = { accelerometer: false, gyroscope: false };
-          const handler = (event) => {
-             motionData.accelerometer = event.accelerationIncludingGravity?.x !== null;
-              motionData.gyroscope = event.rotationRate?.alpha !== null;
-          };
-          window.addEventListener('devicemotion', handler); // Deprecated API, consider migrating to the Sensors API
-         setTimeout(() => { window.removeEventListener('devicemotion', handler); resolve(motionData); }, 1000);
-      });
-  },
+  // Presence-only — do not register deprecated DeviceMotion/Orientation listeners (Firefox warns).
+  getMotionSensorInfo: async () => ({
+      accelerometer: typeof window !== 'undefined' && 'DeviceMotionEvent' in window,
+      gyroscope: typeof window !== 'undefined' && 'DeviceMotionEvent' in window,
+      note: 'api-presence-only',
+  }),
   getEnvironmentalSensorInfo: async () => ({
      ambientLight: typeof window !== 'undefined' && 'AmbientLightSensor' in window
   }),
-  getOrientationSensorInfo: async () => {
-      return new Promise(resolve => {
-          if (typeof window === 'undefined' || !window.DeviceOrientationEvent) { resolve('N/A'); return; }
-         const orientationData = { absolute: false };
-          const handler = (event) => {
-              orientationData.absolute = event.absolute;
-         };
-         window.addEventListener('deviceorientation', handler); // Deprecated API, consider migrating to the Sensors API
-          setTimeout(() => { window.removeEventListener('deviceorientation', handler); resolve(orientationData); }, 1000);
-     });
-  },
+  getOrientationSensorInfo: async () => ({
+      absolute: typeof window !== 'undefined' && 'DeviceOrientationEvent' in window,
+      note: 'api-presence-only',
+  }),
   getProximitySensorInfo: async () => ({ supported: typeof window !== 'undefined' && 'ProximitySensor' in window }),
   getLightSensorInfo: async () => ({ supported: typeof window !== 'undefined' && 'AmbientLightSensor' in window }),
   getSensorPermissions: async () => {

@@ -1,29 +1,52 @@
 const ghostip = {};
 
 ghostip.getIPData = async () => {
-  const apiUrl = 'https://ipapi.co/json/';
+  // ipify first — Firefox Enhanced Tracking Protection often blocks ipapi.co
+  const endpoints = [
+    'https://api.ipify.org?format=json',
+    'https://ipapi.co/json/',
+  ];
 
-  try {
-    const response = await fetch(apiUrl, { timeout: 8000 }); // 5-second timeout
+  for (const apiUrl of endpoints) {
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 8000);
+      const response = await fetch(apiUrl, { signal: controller.signal });
+      clearTimeout(timer);
+      if (!response.ok) continue;
+      const data = await response.json();
+      if (!data) continue;
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! Status: ${response.status}`);
+      // ipify only returns { ip }
+      if (data.ip && !data.country_name && apiUrl.includes('ipify')) {
+        return {
+          ip: data.ip,
+          country: null,
+          region: null,
+          city: null,
+          latitude: null,
+          longitude: null,
+          source: 'ipify',
+        };
+      }
+
+      if (data.ip) {
+        return {
+          ip: data.ip,
+          country: data.country_name || data.country || null,
+          region: data.region || data.regionName || null,
+          city: data.city || null,
+          latitude: data.latitude ?? data.lat ?? null,
+          longitude: data.longitude ?? data.lon ?? null,
+          source: 'ipapi',
+        };
+      }
+    } catch (error) {
+      console.warn('GhostIP endpoint failed:', apiUrl, error.message || error);
     }
-
-    const data = await response.json();
-
-    return {
-      ip: data.ip,
-      country: data.country_name,
-      region: data.region,
-      city: data.city,
-      latitude: data.latitude,
-      longitude: data.longitude,
-    };
-  } catch (error) {
-    console.error('Error fetching IP data:', error.message);
-    return 'N/A';
   }
+
+  return { error: 'IP data unavailable' };
 };
 
 if (typeof module !== 'undefined' && typeof module.exports !== 'undefined') {
