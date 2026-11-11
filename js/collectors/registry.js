@@ -91,21 +91,12 @@ export function displayValueFor(key, data) {
   }
   if (data.clock?.minDelta != null) return `Δmin ${data.clock.minDelta}`;
   if (data.bbox) return `bbox ${data.bbox.w}×${data.bbox.h}`;
-  if (data.opfs?.denied) {
-    return data.fingerprint
-      ? `${String(data.fingerprint).slice(0, 14)}… · OPFS denied`
-      : 'OPFS denied · partial';
+  if (data.opfs?.denied || data.status === 'partial' || data.source === 'partial-no-fonts') {
+    const fp = data.fingerprint || data.visitorId || data.hash;
+    if (fp != null && fp !== '') return String(fp);
   }
   if (data.source === 'local-fallback') {
-    return data.fingerprint ? String(data.fingerprint).slice(0, 18) : 'fallback';
-  }
-  if (data.status === 'partial' || data.source === 'partial-no-fonts') {
-    if (data.fingerprint) return `${String(data.fingerprint).slice(0, 14)}… · partial`;
-    return data.note
-      ? data.note.length > 72
-        ? `${data.note.slice(0, 72)}…`
-        : data.note
-      : 'partial';
+    return data.fingerprint ? String(data.fingerprint) : '—';
   }
   if (data.note && data.fingerprint == null && !data.error) {
     return data.note.length > 72 ? `${data.note.slice(0, 72)}…` : data.note;

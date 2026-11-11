@@ -346,14 +346,6 @@
   color: var(--muted);
 }
 
-.fp-card.is-partial {
-  border-style: dashed;
-}
-
-.fp-card.is-partial .fp-card__value {
-  color: var(--ink);
-}
-
 .fp-card.is-noisy .fp-card__title::after {
   content: "";
   display: inline-block;
@@ -622,11 +614,6 @@
   border-color: var(--muted);
   color: var(--muted);
   letter-spacing: 0.05em;
-}
-
-.fp-card.is-partial .fp-card__value {
-  font-style: italic;
-  color: var(--muted);
 }
 
 .profile__badges .chip {
