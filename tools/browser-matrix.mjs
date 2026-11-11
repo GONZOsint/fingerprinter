@@ -219,8 +219,12 @@ async function main() {
   for (const cfg of BROWSERS) {
     process.stdout.write(`→ ${cfg.id} ... `);
     try {
-      if (!existsSync(cfg.exe) && cfg.engine !== 'spawn-report') {
-        results.push({ id: cfg.id, error: `missing ${cfg.exe}` });
+      if ((!cfg.exe || !existsSync(cfg.exe)) && cfg.engine !== 'spawn-report') {
+        results.push({
+          id: cfg.id,
+          error: cfg.exe ? `missing ${cfg.exe}` : `set FP_${cfg.id.toUpperCase()}_EXE`,
+          skipped: true,
+        });
         console.log('missing');
         continue;
       }
